@@ -15,7 +15,7 @@ call :showEnvVariables
 
 echo.
 echo Running Act-AIO...
-uv run --env-file .env python -m act_aio.main
+uv run python -m act_aio.main
 
 echo.
 echo Act-AIO has finished.
