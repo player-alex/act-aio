@@ -26,7 +26,7 @@ For Windows users, Act-AIO includes pre-packaged binaries for offline installati
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/act-aio.git
+git clone https://github.com/player-alex/act-aio.git
 cd act-aio
 
 # Run the automated installer
@@ -55,7 +55,7 @@ Then install Act-AIO:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/act-aio.git
+git clone https://github.com/player-alex/act-aio.git
 cd act-aio
 
 # Install dependencies
