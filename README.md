@@ -167,10 +167,13 @@ description = "Your plugin description"  # Required: Description
 
 ### Step 4: Add Optional Metadata (Tags) 🏷️
 
-Add optional tags to categorize your plugin:
+Add optional tags to categorize your plugin in the `[project]` section:
 
 ```toml
-[project.optional-metadata]
+[project]
+name = "your-plugin-name"
+version = "1.0.0"
+description = "Your plugin description"
 tags = ["utility", "automation", "example"]  # Optional: Category tags
 ```
 
@@ -205,12 +208,10 @@ name = "my-awesome-plugin"
 version = "1.0.0"
 description = "An awesome plugin for Act-AIO"
 requires-python = ">=3.13"
+tags = ["utility", "web", "automation"]
 dependencies = [
     "requests>=2.31.0",
 ]
-
-[project.optional-metadata]
-tags = ["utility", "web", "automation"]
 ```
 
 ### Plugin Entry Point ▶️
