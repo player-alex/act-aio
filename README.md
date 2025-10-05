@@ -16,11 +16,42 @@ A modern, extensible plugin management system built with Python and Qt6. Act-AIO
 
 - 🐍 Python 3.13 or higher
 - 💻 Windows (primary support), Linux/macOS (experimental)
-- ⚡ UV package manager (recommended) or pip
+- ⚡ **UV package manager (required)** - [Installation Guide](https://docs.astral.sh/uv/getting-started/installation/)
 
 ## 📥 Installation
 
-### Using UV (Recommended) ⚡
+### Option 1: Automated Installation (Windows) 🪟
+
+For Windows users, Act-AIO includes pre-packaged binaries for offline installation:
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/act-aio.git
+cd act-aio
+
+# Run the automated installer
+install.bat
+```
+
+This will automatically install:
+- UV package manager (from `installation/binaries/`)
+- Python 3.13.7 (from `mirror/`)
+
+### Option 2: Manual Installation ⚡
+
+If you don't have UV installed, install it first:
+
+**Windows (PowerShell):**
+```powershell
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+**Linux/macOS:**
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Then install Act-AIO:
 
 ```bash
 # Clone the repository
@@ -34,34 +65,12 @@ uv sync
 uv run python -m act_aio.main
 ```
 
-### Using pip 🐍
-
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/act-aio.git
-cd act-aio
-
-# Create virtual environment
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-
-# Install dependencies
-pip install -e .
-
-# Run the application
-python -m act_aio.main
-```
-
 ## 🎯 Usage
 
 ### Launching the Application 🚀
 
 ```bash
-# With UV
 uv run python -m act_aio.main
-
-# With activated virtual environment
-python -m act_aio.main
 ```
 
 ### Managing Plugins 🔌
