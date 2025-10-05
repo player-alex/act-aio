@@ -127,52 +127,86 @@ act-aio/
 
 ## 🛠️ Plugin Development
 
-### Plugin Structure 📦
+Follow these steps to create a new plugin:
 
-Each plugin should follow this structure:
+### Step 1: Create Plugin Directory 📁
 
-```
-your-plugin/
-├── pyproject.toml          # Required: Plugin metadata
-├── main.py                 # Required: Plugin entry point
-├── manuals/                # Optional: Manual/documentation files
-│   ├── user-guide.md
-│   └── api-reference.md
-├── README.md               # Optional: Plugin documentation
-└── requirements.txt        # Optional: Dependencies (or use pyproject.toml)
+```bash
+cd plugins
+mkdir your-plugin-name
+cd your-plugin-name
 ```
 
-### Creating Plugin Manuals 📖
+### Step 2: Initialize with UV ⚡
 
-To add documentation to your plugin:
-
-1. Create a `manuals/` directory inside your plugin folder
-2. Add markdown files (`.md`) with your documentation
-3. Reference these files in your `pyproject.toml`:
-
-```toml
-[project.optional-metadata]
-manuals = ["manuals/user-guide.md", "manuals/api-reference.md"]
+```bash
+uv init
 ```
 
-The manual files will be accessible via the "?" button in the plugin list.
+This creates a basic `pyproject.toml` and project structure.
 
-### Example pyproject.toml 📄
+### Step 3: Configure Required Metadata 📝
+
+Edit `pyproject.toml` and set the required fields:
 
 ```toml
 [project]
-name = "your-plugin"
+name = "your-plugin-name"           # Required: Plugin name
+version = "1.0.0"                   # Required: Version
+description = "Your plugin description"  # Required: Description
+```
+
+### Step 4: Add Optional Metadata (Tags) 🏷️
+
+Add optional tags to categorize your plugin:
+
+```toml
+[project.optional-metadata]
+tags = ["utility", "automation", "example"]  # Optional: Category tags
+```
+
+**Available Options:**
+- **tags**: Array of strings to categorize your plugin (e.g., "utility", "data-processing", "automation")
+
+### Step 5: Create Plugin Manuals (Optional) 📖
+
+To add documentation accessible via the "?" button:
+
+1. Create a `manuals/` directory inside your plugin folder:
+   ```bash
+   mkdir manuals
+   ```
+
+2. Add documentation files of any format:
+   ```bash
+   # Example files:
+   # manuals/user-guide.md
+   # manuals/api-reference.txt
+   # manuals/tutorial.pdf
+   # manuals/config-example.json
+   ```
+
+**Note:** Act-AIO automatically detects **all files** in the `manuals/` directory, regardless of format (`.md`, `.txt`, `.pdf`, `.json`, etc.). You don't need to list them in `pyproject.toml`. The manual files will be accessible via the "?" button in the plugin list.
+
+### Complete Example 📄
+
+```toml
+[project]
+name = "my-awesome-plugin"
 version = "1.0.0"
-description = "A sample plugin for Act-AIO"
+description = "An awesome plugin for Act-AIO"
+requires-python = ">=3.13"
+dependencies = [
+    "requests>=2.31.0",
+]
 
 [project.optional-metadata]
-tags = ["utility", "example"]
-manuals = ["manuals/user-guide.md", "manuals/api-reference.md"]
+tags = ["utility", "web", "automation"]
 ```
 
 ### Plugin Entry Point ▶️
 
-The `main.py` file should contain your plugin's main logic:
+Create `main.py` with your plugin's main logic:
 
 ```python
 def main():
@@ -180,6 +214,18 @@ def main():
 
 if __name__ == "__main__":
     main()
+```
+
+### Final Plugin Structure 📦
+
+```
+your-plugin/
+├── pyproject.toml          # Required: Plugin metadata
+├── main.py                 # Required: Plugin entry point
+├── manuals/                # Optional: Documentation files
+│   ├── user-guide.md
+│   └── api-reference.md
+└── .venv/                  # Auto-created by Act-AIO
 ```
 
 ## 📦 Creating Distribution Packages
