@@ -326,10 +326,3 @@ POSTHOG_DEBUG=1 uv run python -m act_aio.main
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- **Catppuccin** 🎨: Color scheme for the UI
-- **Roboto** ✍️: Font family by Google
-- **Qt Project** 🖥️: Qt framework
-- **Astral** ⚡: UV package manager
