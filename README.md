@@ -310,6 +310,7 @@ POSTHOG_DEBUG=1 uv run python -m act_aio.main
 ### Application won't start 🚫
 - ✅ Ensure Python 3.13+ is installed
 - ✅ Check that all dependencies are installed: `uv sync`
+- ✅ Verify `.env` file exists (or create an empty one if needed)
 - ✅ Try running with debug mode: `POSTHOG_DEBUG=1 uv run python -m act_aio.main`
 
 ### Plugin won't launch ❌
