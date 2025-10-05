@@ -1,0 +1,43 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+*.pyd
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv/
+plugins/.venv/
+
+# Plugins - exclude all except samples
+plugins/*
+!plugins/break-plugin/
+!plugins/env-printer/
+!plugins/hello-world/
+!plugins/sample-plugin/
+
+# IDE and development
+.claude/
+dev_ctx.md
+.pytest_cache/
+.DS_Store
+Thumbs.db
+
+# Logs and temporary files
+*.log
+*.tmp
+*.bak
+nul
+
+# Backups
+bak/
+
+# Environment and credentials
+.env
+credentials/
+
+# Distribution artifacts
+*.7z
+act-aio-dist.7z

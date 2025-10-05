@@ -1,0 +1,8 @@
+[project]
+name = "hello-world"
+version = "0.1.0"
+description = "Simple hello world plugin"
+requires-python = ">=3.8"
+dependencies = [
+    "rich>=13.0.0",
+]

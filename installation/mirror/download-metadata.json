@@ -1,0 +1,19 @@
+{
+  "cpython-3.13.7-windows-x86_64-none": {
+    "name": "cpython",
+    "arch": {
+      "family": "x86_64",
+      "variant": null
+    },
+    "os": "windows",
+    "libc": "none",
+    "major": 3,
+    "minor": 13,
+    "patch": 7,
+    "prerelease": "",
+    "url": "20250918/cpython-3.13.7+20250918-x86_64-pc-windows-msvc-install_only_stripped.tar.gz",
+    "sha256": "bc229e5364699a8456b6ceabde8348c75e62312ffd62631dd1e494a1755a45ed",
+    "variant": null,
+    "build": "20250918"
+  }
+}

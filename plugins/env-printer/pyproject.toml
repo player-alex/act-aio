@@ -1,0 +1,7 @@
+[project]
+name = "env-printer"
+version = "0.1.0"
+description = "Print all environment variables"
+readme = "README.md"
+requires-python = ">=3.13.7"
+dependencies = []

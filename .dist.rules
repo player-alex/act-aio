@@ -1,0 +1,46 @@
+# Distribution rules for create-distribution.py
+# Lines starting with # are comments
+
+# Directories and files to include
+INCLUDE:
+act_aio/
+credentials/
+fonts/
+installation/
+mirror/
+plugins/
+install.bat
+start.bat
+pyproject.toml
+settings.json
+uv.lock
+README.md
+.env
+.python-version
+
+# Patterns to exclude (applied to all paths)
+EXCLUDE_NAMES:
+.venv
+__pycache__
+.pytest_cache
+.git
+.gitignore
+.claude
+dev_ctx.md
+*.pyc
+*.pyo
+*.pyd
+.DS_Store
+Thumbs.db
+./nul
+./bak
+
+# Exclude by prefix
+EXCLUDE_PREFIXES:
+.
+
+# Exclude by suffix
+EXCLUDE_SUFFIXES:
+.tmp
+.log
+.bak
