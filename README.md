@@ -268,7 +268,7 @@ POSTHOG_DEBUG=1 uv run python -m act_aio.main
 
 ## 📄 License
 
-[Your License Here]
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
