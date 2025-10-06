@@ -1,22 +1,35 @@
+<div align="center">
+
 # 🚀 Act-AIO
 
-A modern, extensible plugin management system built with Python and Qt6. Act-AIO provides a sleek GUI for discovering, managing, and launching Python-based plugins with isolated virtual environments.
+![Python](https://img.shields.io/badge/Python-3.13+-3776AB?logo=python&logoColor=white)
+![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-0078D6)
+![Qt](https://img.shields.io/badge/Qt-6-41CD52?logo=qt&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+
+**A modern, extensible plugin management system built with Python and Qt6** 🚀
+
+[Features](#-features) • [Installation](#-installation) • [Usage](#-usage) • [Plugin Development](#-plugin-development) • [Contributing](#-contributing)
+
+</div>
+
+---
 
 ## ✨ Features
 
-- 🔌 **Plugin System**: Automatic plugin discovery from the `plugins/` directory using `pyproject.toml` metadata
-- 📦 **Isolated Environments**: Each plugin runs in its own UV-managed virtual environment with independent dependencies
-- 🎨 **Modern UI**: Clean, responsive interface built with Qt Quick/QML featuring Catppuccin color scheme
-- 🔍 **Search & Filter**: Real-time plugin search by name, description, tags, or version
-- ⚙️ **Environment Management**: Support for `.env` files with variable substitution and proxy configuration
-- 🔒 **Privacy-Focused Analytics**: Optional PostHog integration with hardware-based UUID (no personal data)
-- 📦 **Distribution Tools**: Built-in script for creating distributable packages with optional 7z compression and encryption
+- 🔌 **Plugin System** - Automatic plugin discovery from the `plugins/` directory using `pyproject.toml` metadata
+- 📦 **Isolated Environments** - Each plugin runs in its own UV-managed virtual environment with independent dependencies
+- 🎨 **Modern UI** - Clean, responsive interface built with Qt Quick/QML featuring Catppuccin color scheme
+- 🔍 **Search & Filter** - Real-time plugin search by name, description, tags, or version
+- ⚙️ **Environment Management** - Support for `.env` files with variable substitution and proxy configuration
+- 🔒 **Privacy-Focused Analytics** - Optional PostHog integration with hardware-based UUID (no personal data)
+- 📦 **Distribution Tools** - Built-in script for creating distributable packages with optional 7z compression and encryption
 
 ## 📋 Requirements
 
-- 🐍 Python 3.13 or higher
-- 💻 Windows (primary support), Linux/macOS (experimental)
-- ⚡ **UV package manager (required)** - [Installation Guide](https://docs.astral.sh/uv/getting-started/installation/)
+- 🐍 **Python 3.13 or higher**
+- 💻 **Windows** (primary support), Linux/macOS (experimental)
+- ⚡ **UV package manager (required)** - [Download](https://docs.astral.sh/uv/getting-started/installation/)
 
 ## 📥 Installation
 
@@ -297,6 +310,16 @@ POSTHOG_DEBUG=1 uv run python -m act_aio.main
 - 🎨 **QML**: Use Qt Quick best practices
 - 🔤 **Type hints**: Encouraged for Python code
 
+## 🔧 Technologies Used
+
+| Technology | Purpose | Version |
+|------------|---------|---------|
+| [Python](https://www.python.org/) | Core language | 3.13+ |
+| [Qt6/PySide6](https://doc.qt.io/qtforpython-6/) | GUI framework | - |
+| [UV](https://docs.astral.sh/uv/) | Package manager | - |
+| [py7zr](https://py7zr.readthedocs.io/) | Archive creation | - |
+| [PostHog](https://posthog.com/) | Analytics | - |
+
 ## 📚 Dependencies
 
 - **PySide6**: Qt6 Python bindings for GUI
@@ -307,22 +330,54 @@ POSTHOG_DEBUG=1 uv run python -m act_aio.main
 
 ## ⚠️ Troubleshooting
 
-### Application won't start 🚫
+<details>
+<summary><b>🚫 Application won't start</b></summary>
+
 - ✅ Ensure Python 3.13+ is installed
 - ✅ Check that all dependencies are installed: `uv sync`
 - ✅ Verify `.env` file exists (or create an empty one if needed)
 - ✅ Try running with debug mode: `POSTHOG_DEBUG=1 uv run python -m act_aio.main`
 
-### Plugin won't launch ❌
+</details>
+
+<details>
+<summary><b>❌ Plugin won't launch</b></summary>
+
 - ✅ Verify plugin has `main.py` file
 - ✅ Check plugin's `pyproject.toml` is valid
 - ✅ Look for error messages in the console
 
-### Proxy issues 🌐
+</details>
+
+<details>
+<summary><b>🌐 Proxy issues</b></summary>
+
 - ✅ Verify `HTTP_PROXY` and `HTTPS_PROXY` in `.env` are correct
 - ✅ Check proxy allows HTTPS connections
 - ✅ Try running without proxy temporarily (set to empty string "")
 
+</details>
+
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- All the amazing open-source libraries that made this project possible
+- The Python and Qt communities for their excellent documentation and support
+
+## 👤 Author
+
+**Alex**
+- GitHub: [@player-alex](https://github.com/player-alex)
+
+---
+
+<div align="center">
+
+**⭐ Star this repository if you find it helpful!**
+
+Made with ❤️ by [Alex](https://github.com/player-alex)
+
+</div>
