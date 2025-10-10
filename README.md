@@ -9,8 +9,6 @@
 
 **A modern, extensible plugin management system built with Python and Qt6** 🚀
 
-[Features](#-features) • [Installation](#-installation) • [Usage](#-usage) • [Plugin Development](#-plugin-development) • [Contributing](#-contributing)
-
 </div>
 
 ---
@@ -367,17 +365,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - All the amazing open-source libraries that made this project possible
 - The Python and Qt communities for their excellent documentation and support
 
-## 👤 Author
-
-**Alex**
-- GitHub: [@player-alex](https://github.com/player-alex)
-
 ---
-
-<div align="center">
-
-**⭐ Star this repository if you find it helpful!**
-
-Made with ❤️ by [Alex](https://github.com/player-alex)
-
-</div>
