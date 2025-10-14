@@ -16,6 +16,7 @@ from PySide6.QtGui import QFontDatabase
 from PySide6.QtQuickControls2 import QQuickStyle
 import posthog
 
+from . import qml_qrc
 from .plugin_manager import PluginManager
 from .models import PluginListModel
 from .tracking import tracking_context
@@ -244,8 +245,9 @@ def main():
     engine = QQmlApplicationEngine()
 
     # Set up the QML source
-    qml_file = Path(__file__).parent / "qml" / "main.qml"
-    engine.load(QUrl.fromLocalFile(str(qml_file)))
+    # qml_file = Path(__file__).parent / "qml" / "main.qml"
+    # engine.load(QUrl.fromLocalFile(str(qml_file)))
+    engine.load("qrc:/qml/main.qml")
 
     if not engine.rootObjects():
         end_time = datetime.now()

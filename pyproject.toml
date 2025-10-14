@@ -5,6 +5,7 @@ description = "Actions All-In-One - Python Plugin Launcher"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "nuitka>=2.8.1",
     "posthog>=6.7.5",
     "py7zr>=1.0.0",
     "PySide6>=6.8.0",
