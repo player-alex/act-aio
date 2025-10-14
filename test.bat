@@ -1,1 +1,0 @@
-start "Act-AIO GUI" uv run pythonw -m act_aio.main
