@@ -3,6 +3,7 @@ import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 import QtQuick.Window 2.15
 import ActAio 1.0
+import "components"
 
 ApplicationWindow {
     id: window
@@ -569,12 +570,16 @@ ApplicationWindow {
         }
     }
 
-    Rectangle {
+    Dialog {
         id: aboutDialog
-        anchors.fill: parent
-        color: "#80000000"
+        width: 550
+        height: implicitHeight - 10
+        anchors.centerIn: parent
+        modal: true
+        focus: true
         visible: false
-        z: 2000
+        padding: 20
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnClickedOutside
 
         property string repositoryUrl: ""
         property var dependencies: []
@@ -588,149 +593,171 @@ ApplicationWindow {
             visible = true
         }
 
-        function close() {
-            visible = false
-        }
-
-        MouseArea {
-            anchors.fill: parent
-            onClicked: aboutDialog.close()
-
-            hoverEnabled: true
-            onPressed: function(mouse) { mouse.accepted = true }
-            onReleased: function(mouse) { mouse.accepted = true }
-            onPositionChanged: function(mouse) { mouse.accepted = true }
-            onWheel: function(wheel) { wheel.accepted = true }
-        }
-
-        Rectangle {
-            width: 550
-            height: 500
+        background: Rectangle {
             color: window.base
             radius: 12
             border.color: window.surface1
             border.width: 2
-            anchors.centerIn: parent
+        }
 
-            MouseArea {
-                anchors.fill: parent
-                onClicked: {}
-                onWheel: function(wheel) { wheel.accepted = true }
+        contentItem: ColumnLayout {
+            spacing: 15
+
+            // Title
+            RowLayout {
+                Layout.fillWidth: true
+                Text {
+                    text: "About Actions All-In-One"
+                    font.family: "Roboto"
+                    font.pointSize: 16
+                    color: window.text
+                    Layout.fillWidth: true
+                }
+                Text {
+                    text: "player-alex"
+                    font.family: "Roboto"
+                    font.pointSize: 10
+                    color: window.subtext0
+                }
             }
 
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 20
-                spacing: 15
+            Rectangle { Layout.fillWidth: true; height: 1; color: window.surface2 }
 
-                // Title
-                RowLayout {
-                    Layout.fillWidth: true
-                    Text {
-                        text: "About Actions All-In-One"
-                        font.family: "Roboto"
-                        font.pointSize: 16
-                        color: window.text
-                        Layout.fillWidth: true
-                    }
-                    Text {
-                        text: "player-alex"
-                        font.family: "Roboto"
-                        font.pointSize: 10
-                        color: window.subtext0
-                    }
-                }
-
-                Rectangle { Layout.fillWidth: true; height: 1; color: window.surface2 }
-
-                // Repository
-                RowLayout {
-                    Text {
-                        text: "Repository:"
-                        font.family: "Roboto"
-                        font.pointSize: 11
-                        font.weight: Font.Bold
-                        color: window.text
-                    }
-                    Text {
-                        text: '<a href="' + aboutDialog.repositoryUrl + '"><font color="' + window.text + '">' + aboutDialog.repositoryUrl + '</font></a>'
-                        font.family: "Roboto"
-                        font.pointSize: 11
-                        textFormat: Text.RichText
-                        onLinkActivated: Qt.openUrlExternally(link)
-                    }
-                }
-
-                // Dependencies
+            // Repository
+            RowLayout {
                 Text {
-                    text: "Dependencies"
+                    text: "Repository:"
                     font.family: "Roboto"
-                    font.pointSize: 12
+                    font.pointSize: 11
                     font.weight: Font.Bold
                     color: window.text
                 }
+                Text {
+                    text: '<a href="' + aboutDialog.repositoryUrl + '"><font color="' + window.text + '">' + aboutDialog.repositoryUrl + '</font></a>'
+                    font.family: "Roboto"
+                    font.pointSize: 11
+                    textFormat: Text.RichText
 
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 80
-                    color: window.surface0
-                    radius: 4
-
-                    Flickable {
+                    MouseArea {
                         anchors.fill: parent
-                        anchors.margins: 8
-                        contentHeight: depsColumn.height
-                        clip: true
+                        cursorShape: Qt.PointingHandCursor
 
-                        Column {
-                            id: depsColumn
-                            spacing: 5
-                            Repeater {
-                                model: aboutDialog.dependencies
-                                delegate: Text {
-                                    text: '<a href="' + modelData.url + '"><font color="' + window.text + '">' + modelData.name + '</font></a>'
-                                    font.family: "Roboto"
-                                    font.pointSize: 10
-                                    textFormat: Text.RichText
-                                    onLinkActivated: Qt.openUrlExternally(link)
+                        onClicked: {
+                            Qt.openUrlExternally(aboutDialog.repositoryUrl)
+                        }
+                    }
+                }
+            }
+
+            // Dependencies
+            Text {
+                text: "Dependencies"
+                font.family: "Roboto"
+                font.pointSize: 12
+                font.weight: Font.Bold
+                color: window.text
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 80
+                color: window.surface0
+                radius: 4
+
+                Flickable {
+                    anchors.fill: parent
+                    anchors.margins: 8
+                    contentHeight: depsColumn.height
+                    clip: true
+
+                    Column {
+                        id: depsColumn
+                        spacing: 5
+                        Repeater {
+                            model: aboutDialog.dependencies
+                            delegate: Text {
+                                text: '<a href="' + modelData.url + '"><font color="' + window.text + '">' + modelData.name + '</font></a>'
+                                font.family: "Roboto"
+                                font.pointSize: 10
+                                textFormat: Text.RichText
+                                onLinkActivated: Qt.openUrlExternally(link)
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+
+                                    onClicked: {
+                                        Qt.openUrlExternally(modelData.url)
+                                    }
                                 }
                             }
                         }
                     }
                 }
+            }
 
-                // License
-                Text {
-                    text: "License"
-                    font.family: "Roboto"
-                    font.pointSize: 12
-                    font.weight: Font.Bold
-                    color: window.text
-                }
+            // License
+            Text {
+                text: "License"
+                font.family: "Roboto"
+                font.pointSize: 12
+                font.weight: Font.Bold
+                color: window.text
+            }
 
-                ScrollView {
-                    id: licenseScrollView
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.minimumHeight: 200
+                color: window.surface0
+                radius: 8
+                border.color: window.surface1
+                border.width: 1
+
+                Flickable {
+                    id: licenseFlickable
+                    anchors.fill: parent
+                    anchors.margins: 8
+                    anchors.rightMargin: 2
+                    contentWidth: Math.max(width, licenseTextx ? licenseTextx.width : 0)
+                    contentHeight: licenseTextx.height
                     clip: true
-                    background: Rectangle { color: window.surface0; radius: 4 }
+                    flickableDirection: Flickable.HorizontalAndVerticalFlick
+                    boundsBehavior: Flickable.StopAtBounds
+
+                    ScrollBar.vertical: CustomScrollBar {
+                        orientation: Qt.Vertical
+                        bottomPadding: 8
+                    }
+
+                    ScrollBar.horizontal: CustomScrollBar {
+                        orientation: Qt.Horizontal
+                        rightPadding: 8
+                    }
 
                     Text {
-                        width: parent.width
+                        id: licenseTextx
+                        width: Math.max(licenseFlickable.width, implicitWidth)
                         height: implicitHeight
                         text: aboutDialog.licenseText
                         wrapMode: Text.NoWrap
                         font.family: "Roboto"
                         font.pointSize: 9
                         color: window.subtext0
-                        // 텍스트 주변에 약간의 여백 추가
                         padding: 10
                     }
                 }
+            }
 
+            // Close Button
+            Rectangle {
+                width: parent.width
+                height: 55
+                color: "transparent"
 
                 RowLayout {
-                    Layout.fillWidth: true
+                    anchors.fill: parent
+                    anchors.bottomMargin: 10
                     Item { Layout.fillWidth: true }
                     Rectangle {
                         width: 100
@@ -739,6 +766,7 @@ ApplicationWindow {
                         radius: 4
                         border.color: window.overlay0
                         border.width: 1
+                        Layout.alignment: Qt.AlignVCenter
 
                         Text {
                             anchors.centerIn: parent
@@ -756,25 +784,33 @@ ApplicationWindow {
                         }
                     }
                 }
-
-
-
             }
+
         }
     }
 
-    // Settings Dialog (Custom implementation to match theme)
-    Rectangle {
+    Dialog {
         id: settingsDialog
-        anchors.fill: parent
-        color: "#80000000"
+        width: 500
+        height: 450
+        anchors.centerIn: parent
+        modal: true
+        focus: true
         visible: false
-        z: 2000
+        closePolicy: Popup.CloseOnEscape
+
+        topPadding: 20
+        bottomPadding: 20
+        leftPadding: 25
+        rightPadding: 25
 
         property var envSettings: ({})
 
+        ListModel {
+            id: envListModel
+        }
+
         function open() {
-            visible = true
             envSettings = pluginManager.getEnvironmentSettings()
             envListModel.clear()
 
@@ -787,51 +823,18 @@ ApplicationWindow {
                     "enabled": envSettings[key] === true
                 })
             }
+            visible = true
         }
 
-        function close() {
-            visible = false
-        }
-
-        // Background overlay that blocks interaction with elements below
-        MouseArea {
-            anchors.fill: parent
-            hoverEnabled: true
-            onClicked: {}
-            onPressed: function(mouse) { mouse.accepted = true }
-            onReleased: function(mouse) { mouse.accepted = true }
-            onPositionChanged: function(mouse) { mouse.accepted = true }
-            onWheel: { wheel.accepted = true }
-        }
-
-        // Actual dialog content
-        Rectangle {
-            id: dialogContent
-            width: 500
-            height: 450
+        background: Rectangle {
             color: window.base
             radius: 12
             border.color: window.surface1
             border.width: 2
-            anchors.centerIn: parent
+        }
 
-            // Prevent clicks on dialog content from closing the dialog
-            MouseArea {
-                anchors.fill: parent
-                onClicked: {} // Do nothing, just consume the click
-            }
-
-            ListModel {
-                id: envListModel
-            }
-
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.leftMargin: 25
-                anchors.rightMargin: 25
-                anchors.topMargin: 20
-                anchors.bottomMargin: 20
-                spacing: 10
+        contentItem: ColumnLayout {
+            spacing: 10
 
             // Title bar
             RowLayout {
@@ -905,56 +908,14 @@ ApplicationWindow {
                     flickableDirection: Flickable.HorizontalAndVerticalFlick
                     boundsBehavior: Flickable.StopAtBounds
 
-                    ScrollBar.vertical: ScrollBar {
-                        id: vbarSettings
-                        policy: ScrollBar.AsNeeded
-                        padding: 0
-                        topPadding: 0
-                        bottomPadding: 0
-                        leftPadding: 0
-                        rightPadding: 0
-                        hoverEnabled: true
-                        active: true
+                    ScrollBar.vertical: CustomScrollBar {
                         orientation: Qt.Vertical
-
-                        background: Rectangle {
-                            implicitWidth: 10
-                            color: window.surface0
-                            radius: 5
-                        }
-
-                        contentItem: Rectangle {
-                            implicitWidth: 10
-                            color: window.overlay0
-                            radius: 5
-                            visible: vbarSettings.size < 1.0
-                        }
+                        bottomPadding: 8
                     }
 
-                    ScrollBar.horizontal: ScrollBar {
-                        id: hbarSettings
-                        policy: ScrollBar.AsNeeded
-                        padding: 0
-                        topPadding: 0
-                        bottomPadding: 0
-                        leftPadding: 0
-                        rightPadding: 10
-                        hoverEnabled: true
-                        active: true
+                    ScrollBar.horizontal: CustomScrollBar {
                         orientation: Qt.Horizontal
-
-                        background: Rectangle {
-                            implicitHeight: 10
-                            color: window.surface0
-                            radius: 5
-                        }
-
-                        contentItem: Rectangle {
-                            implicitHeight: 10
-                            color: window.overlay0
-                            radius: 5
-                            visible: hbarSettings.size < 1.0
-                        }
+                        rightPadding: 8
                     }
 
                     ListView {
@@ -1064,7 +1025,9 @@ ApplicationWindow {
                     }
                 }
             }
+        }
 
+        footer: ColumnLayout {
             Rectangle {
                 Layout.fillWidth: true
                 height: 1
@@ -1074,6 +1037,9 @@ ApplicationWindow {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 10
+                Layout.topMargin: 10
+                Layout.bottomMargin: 20
+                Layout.rightMargin: 25
 
                 Item {
                     Layout.fillWidth: true
@@ -1128,193 +1094,6 @@ ApplicationWindow {
                             pluginManager.setEnvironmentSettings(settingsDialog.envSettings)
                             settingsDialog.close()
                         }
-                    }
-                }
-            }
-            }
-        }
-    }
-
-    // Error Dialog (Custom implementation to match theme)
-    Rectangle {
-        id: errorDialog
-        width: 500
-        height: 400
-        color: window.base
-        radius: 12
-        border.color: window.red
-        border.width: 2
-        visible: false
-        anchors.centerIn: parent
-        z: 3000
-
-        property string errorTitle: "Error"
-        property string errorMessage: ""
-
-        function show(title, message) {
-            errorTitle = title
-            errorMessage = message
-            visible = true
-        }
-
-        function close() {
-            visible = false
-        }
-
-        // Semi-transparent background overlay
-        Rectangle {
-            id: errorOverlay
-            anchors.fill: parent
-            anchors.margins: -1000
-            color: "#80000000"
-            visible: parent.visible
-            z: -1
-
-            MouseArea {
-                anchors.fill: parent
-                onClicked: errorDialog.close()
-            }
-        }
-
-        // Prevent clicks on dialog content from closing the dialog
-        MouseArea {
-            anchors.fill: parent
-            onClicked: {} // Do nothing, just consume the click
-            onWheel: { wheel.accepted = true }
-        }
-
-        ColumnLayout {
-            anchors.fill: parent
-            anchors.leftMargin: 30
-            anchors.rightMargin: 30
-            anchors.topMargin: 20
-            anchors.bottomMargin: 20
-            spacing: 15
-
-            // Title bar
-            RowLayout {
-                Layout.fillWidth: true
-
-                Rectangle {
-                    width: 24
-                    height: 24
-                    color: window.red
-                    radius: 12
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: "!"
-                        font.family: "Roboto"
-                        font.pointSize: 14
-                        font.weight: Font.Bold
-                        color: window.base
-                    }
-                }
-
-                Text {
-                    text: errorDialog.errorTitle
-                    font.family: "Roboto"
-                    font.pointSize: 16
-                    font.weight: Font.Bold
-                    color: window.red
-                    Layout.fillWidth: true
-                }
-
-                Rectangle {
-                    width: 30
-                    height: 30
-                    color: errorCloseMouseArea.containsMouse ? window.red : "transparent"
-                    radius: 4
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: "×"
-                        font.family: "Roboto"
-                        font.pointSize: 16
-                        font.weight: Font.Bold
-                        color: window.text
-                    }
-
-                    MouseArea {
-                        id: errorCloseMouseArea
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        onClicked: errorDialog.close()
-                    }
-                }
-            }
-
-            Rectangle {
-                Layout.fillWidth: true
-                height: 1
-                color: window.surface2
-            }
-
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                color: window.surface0
-                radius: 8
-                border.color: window.surface1
-                border.width: 1
-
-                ScrollView {
-                    anchors.fill: parent
-                    anchors.margins: 10
-                    clip: true
-                    background: Rectangle {
-                        color: "transparent"
-                    }
-
-                    Text {
-                        width: errorDialog.width - 80
-                        text: errorDialog.errorMessage
-                        font.family: "Roboto"
-                        font.pointSize: 11
-                        color: window.text
-                        wrapMode: Text.WordWrap
-                        textFormat: Text.PlainText
-                    }
-                }
-            }
-
-
-            Rectangle {
-                Layout.fillWidth: true
-                height: 1
-                color: window.surface2
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 10
-
-                Item {
-                    Layout.fillWidth: true
-                }
-
-                Rectangle {
-                    width: 80
-                    height: 35
-                    color: errorOkMouseArea.containsMouse ? window.blue : window.surface1
-                    radius: 4
-                    border.color: window.blue
-                    border.width: 1
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: "OK"
-                        font.family: "Roboto"
-                        font.pointSize: 10
-                        font.weight: Font.Bold
-                        color: errorOkMouseArea.containsMouse ? window.base : window.text
-                    }
-
-                    MouseArea {
-                        id: errorOkMouseArea
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        onClicked: errorDialog.close()
                     }
                 }
             }
@@ -1676,13 +1455,198 @@ ApplicationWindow {
         z: 50
     }
 
-    // Confirmation Dialog (Yes/No)
-    Rectangle {
-        id: confirmationDialog
-        anchors.fill: parent
-        color: "#80000000"
+    Dialog {
+        id: errorDialog
+        width: 500
+        height: 250
+        anchors.centerIn: parent
+        modal: true
+        focus: true
         visible: false
-        z: 3500
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnClickedOutside
+
+        topPadding: 20
+        bottomPadding: 20
+        leftPadding: 30
+        rightPadding: 30
+
+        property string errorTitle: "Error"
+        property string errorMessage: ""
+
+        function show(title, message) {
+            errorTitle = title
+            errorMessage = message
+            visible = true
+        }
+
+        background: Rectangle {
+            color: window.base
+            radius: 12
+            border.color: window.red
+            border.width: 2
+        }
+
+        contentItem: ColumnLayout {
+            spacing: 15
+            Layout.fillWidth: true
+            height: Math.max(250, parent.height)
+
+            // Title bar
+            RowLayout {
+                Layout.fillWidth: true
+
+                Rectangle {
+                    width: 24
+                    height: 24
+                    color: window.red
+                    radius: 12
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "!"
+                        font.family: "Roboto"
+                        font.pointSize: 14
+                        font.weight: Font.Bold
+                        color: window.base
+                    }
+                }
+
+                Text {
+                    text: errorDialog.errorTitle
+                    font.family: "Roboto"
+                    font.pointSize: 16
+                    font.weight: Font.Bold
+                    color: window.red
+                    Layout.fillWidth: true
+                }
+
+                Rectangle {
+                    width: 30
+                    height: 30
+                    color: errorCloseMouseArea.containsMouse ? window.red : "transparent"
+                    radius: 4
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "×"
+                        font.family: "Roboto"
+                        font.pointSize: 16
+                        font.weight: Font.Bold
+                        color: window.text
+                    }
+
+                    MouseArea {
+                        id: errorCloseMouseArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        onClicked: errorDialog.close()
+                    }
+                }
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                height: 1
+                color: window.surface2
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                color: "transparent"
+
+                Flickable {
+                    id: errorDialogMessageFlickable
+                    anchors.fill: parent
+                    contentWidth: parent.width
+                    contentHeight: errorDialogMessageText.height
+                    clip: true
+                    flickableDirection: Flickable.HorizontalAndVerticalFlick
+                    boundsBehavior: Flickable.StopAtBounds
+
+                    ScrollBar.vertical: CustomScrollBar {
+                        orientation: Qt.Vertical
+                    }
+
+                    Text {
+                        id: errorDialogMessageText
+                        width: parent.width
+                        height: implicitHeight
+                        text: errorDialog.errorMessage
+                        font.family: "Roboto"
+                        font.pointSize: 11
+                        color: window.text
+                        wrapMode: Text.Wrap
+                        textFormat: Text.StyledText
+                    }
+                }
+            }
+        }
+
+        footer: ColumnLayout {
+            spacing: 0
+            Layout.fillWidth: true
+
+            Rectangle {
+                Layout.fillWidth: true
+                height: 1
+                color: window.surface2
+                Layout.topMargin: 15
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.topMargin: 15
+                Layout.rightMargin: 30
+                Layout.bottomMargin: 20
+
+                Item {
+                    Layout.fillWidth: true
+                }
+
+                Rectangle {
+                    width: 80
+                    height: 35
+                    color: errorOkMouseArea.containsMouse ? window.blue : window.surface1
+                    radius: 4
+                    border.color: window.blue
+                    border.width: 1
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "OK"
+                        font.family: "Roboto"
+                        font.pointSize: 10
+                        font.weight: Font.Bold
+                        color: errorOkMouseArea.containsMouse ? window.base : window.text
+                    }
+
+                    MouseArea {
+                        id: errorOkMouseArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        onClicked: errorDialog.close()
+                    }
+                }
+            }
+        }
+    }
+
+
+    Dialog {
+        id: confirmationDialog
+        width: 450
+        height: 250
+        anchors.centerIn: parent
+        modal: true
+        focus: true
+        visible: false
+        closePolicy: Popup.CloseOnEscape
+
+        topPadding: 20
+        bottomPadding: 20
+        leftPadding: 30
+        rightPadding: 30
 
         property string dialogTitle: ""
         property string dialogMessage: ""
@@ -1695,171 +1659,159 @@ ApplicationWindow {
             visible = true
         }
 
-        function close() {
-            visible = false
-        }
-
-        MouseArea {
-            anchors.fill: parent
-            hoverEnabled: true
-            onClicked: {}
-            onPressed: function(mouse) { mouse.accepted = true }
-            onReleased: function(mouse) { mouse.accepted = true }
-            onPositionChanged: function(mouse) { mouse.accepted = true }
-            onWheel: { wheel.accepted = true }
-        }
-
-        Rectangle {
-            width: 450
-            height: 250
+        background: Rectangle {
             color: window.base
             radius: 12
             border.color: window.yellow
             border.width: 2
-            anchors.centerIn: parent
+        }
 
-            MouseArea {
-                anchors.fill: parent
-                onClicked: {}
+        contentItem: ColumnLayout {
+            spacing: 15
+            Layout.fillWidth: true
+            height: Math.max(250, parent.height)
+
+            RowLayout {
+                Layout.fillWidth: true
+
+                Rectangle {
+                    width: 24
+                    height: 24
+                    color: window.yellow
+                    radius: 12
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "?"
+                        font.family: "Roboto"
+                        font.pointSize: 14
+                        font.weight: Font.Bold
+                        color: window.base
+                    }
+                }
+
+                Text {
+                    text: confirmationDialog.dialogTitle
+                    font.family: "Roboto"
+                    font.pointSize: 16
+                    font.weight: Font.Bold
+                    color: window.yellow
+                    Layout.fillWidth: true
+                }
             }
 
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.leftMargin: 30
-                anchors.rightMargin: 30
-                anchors.topMargin: 20
-                anchors.bottomMargin: 20
-                spacing: 15
+            Rectangle {
+                Layout.fillWidth: true
+                height: 1
+                color: window.surface2
+            }
 
-                RowLayout {
-                    Layout.fillWidth: true
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                color: "transparent"
 
-                    Rectangle {
-                        width: 24
-                        height: 24
-                        color: window.yellow
-                        radius: 12
+                Flickable {
+                    id: confirmationDialogMessageFlickable
+                    anchors.fill: parent
+                    contentWidth: parent.width
+                    contentHeight: confirmationDialogMessageText.height
+                    clip: true
+                    flickableDirection: Flickable.HorizontalAndVerticalFlick
+                    boundsBehavior: Flickable.StopAtBounds
 
-                        Text {
-                            anchors.centerIn: parent
-                            text: "?"
-                            font.family: "Roboto"
-                            font.pointSize: 14
-                            font.weight: Font.Bold
-                            color: window.base
-                        }
+                    ScrollBar.vertical: CustomScrollBar {
+                        orientation: Qt.Vertical
                     }
 
                     Text {
-                        text: confirmationDialog.dialogTitle
+                        id: confirmationDialogMessageText
+                        width: parent.width
+                        height: implicitHeight
+                        text: confirmationDialog.dialogMessage
                         font.family: "Roboto"
-                        font.pointSize: 16
-                        font.weight: Font.Bold
-                        color: window.yellow
-                        Layout.fillWidth: true
+                        font.pointSize: 11
+                        color: window.text
+                        wrapMode: Text.Wrap
+                        textFormat: Text.StyledText
                     }
                 }
+            }
+        }
 
-                Rectangle {
+        footer: ColumnLayout {
+            spacing: 0
+            Layout.fillWidth: true
+
+            Rectangle {
+                Layout.fillWidth: true
+                height: 1
+                color: window.surface2
+                Layout.topMargin: 15
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.topMargin: 15
+                spacing: 10
+                Layout.rightMargin: 30
+                Layout.bottomMargin: 20
+
+                Item {
                     Layout.fillWidth: true
-                    height: 1
-                    color: window.surface2
                 }
 
                 Rectangle {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    color: window.surface0
-                    radius: 8
-                    border.color: window.surface1
+                    width: 80
+                    height: 35
+                    color: confirmNoMouseArea.containsMouse ? window.surface1 : window.surface0
+                    radius: 4
+                    border.color: window.overlay0
                     border.width: 1
 
-                    ScrollView {
-                        anchors.fill: parent
-                        anchors.margins: 15
-                        clip: true
-                        background: Rectangle {
-                            color: "transparent"
-                        }
+                    Text {
+                        anchors.centerIn: parent
+                        text: "No"
+                        font.family: "Roboto"
+                        font.pointSize: 10
+                        color: window.text
+                    }
 
-                        Text {
-                            width: 370
-                            text: confirmationDialog.dialogMessage
-                            font.family: "Roboto"
-                            font.pointSize: 11
-                            color: window.text
-                            wrapMode: Text.WordWrap
-                            textFormat: Text.PlainText
+                    MouseArea {
+                        id: confirmNoMouseArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        onClicked: {
+                            pluginManager.handleConfirmationResponse(confirmationDialog.callbackId, false)
+                            confirmationDialog.close()
                         }
                     }
                 }
 
                 Rectangle {
-                    Layout.fillWidth: true
-                    height: 1
-                    color: window.surface2
-                }
+                    width: 80
+                    height: 35
+                    color: confirmYesMouseArea.containsMouse ? window.blue : window.surface1
+                    radius: 4
+                    border.color: window.blue
+                    border.width: 1
 
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 10
-
-                    Item {
-                        Layout.fillWidth: true
+                    Text {
+                        anchors.centerIn: parent
+                        text: "Yes"
+                        font.family: "Roboto"
+                        font.pointSize: 10
+                        font.weight: Font.Bold
+                        color: confirmYesMouseArea.containsMouse ? window.base : window.text
                     }
 
-                    Rectangle {
-                        width: 80
-                        height: 35
-                        color: confirmNoMouseArea.containsMouse ? window.surface1 : window.surface0
-                        radius: 4
-                        border.color: window.overlay0
-                        border.width: 1
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: "No"
-                            font.family: "Roboto"
-                            font.pointSize: 10
-                            color: window.text
-                        }
-
-                        MouseArea {
-                            id: confirmNoMouseArea
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            onClicked: {
-                                pluginManager.handleConfirmationResponse(confirmationDialog.callbackId, false)
-                                confirmationDialog.close()
-                            }
-                        }
-                    }
-
-                    Rectangle {
-                        width: 80
-                        height: 35
-                        color: confirmYesMouseArea.containsMouse ? window.blue : window.surface1
-                        radius: 4
-                        border.color: window.blue
-                        border.width: 1
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: "Yes"
-                            font.family: "Roboto"
-                            font.pointSize: 10
-                            font.weight: Font.Bold
-                            color: confirmYesMouseArea.containsMouse ? window.base : window.text
-                        }
-
-                        MouseArea {
-                            id: confirmYesMouseArea
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            onClicked: {
-                                pluginManager.handleConfirmationResponse(confirmationDialog.callbackId, true)
-                                confirmationDialog.close()
-                            }
+                    MouseArea {
+                        id: confirmYesMouseArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        onClicked: {
+                            pluginManager.handleConfirmationResponse(confirmationDialog.callbackId, true)
+                            confirmationDialog.close()
                         }
                     }
                 }
@@ -1867,13 +1819,20 @@ ApplicationWindow {
         }
     }
 
-    // Info Dialog (OK only)
-    Rectangle {
+    Dialog {
         id: infoDialog
-        anchors.fill: parent
-        color: "#80000000"
+        width: 450
+        height: 250
+        anchors.centerIn: parent
+        modal: true
+        focus: true
         visible: false
-        z: 3500
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnClickedOutside
+
+        topPadding: 20
+        bottomPadding: 20
+        leftPadding: 30
+        rightPadding: 30
 
         property string dialogTitle: ""
         property string dialogMessage: ""
@@ -1884,143 +1843,123 @@ ApplicationWindow {
             visible = true
         }
 
-        function close() {
-            visible = false
-        }
-
-        MouseArea {
-            anchors.fill: parent
-            hoverEnabled: true
-            onClicked: {}
-            onPressed: function(mouse) { mouse.accepted = true }
-            onReleased: function(mouse) { mouse.accepted = true }
-            onPositionChanged: function(mouse) { mouse.accepted = true }
-            onWheel: { wheel.accepted = true }
-        }
-
-        Rectangle {
-            width: 450
-            height: 250
+        background: Rectangle {
             color: window.base
             radius: 12
             border.color: window.green
             border.width: 2
-            anchors.centerIn: parent
+        }
 
-            MouseArea {
-                anchors.fill: parent
-                onClicked: {}
+        contentItem: ColumnLayout {
+            spacing: 15
+            Layout.fillWidth: true
+            height: Math.max(250, parent.height)
+
+            RowLayout {
+                Layout.fillWidth: true
+
+                Rectangle {
+                    width: 24
+                    height: 24
+                    color: window.green
+                    radius: 12
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "✓"
+                        font.family: "Roboto"
+                        font.pointSize: 14
+                        font.weight: Font.Bold
+                        color: window.base
+                    }
+                }
+
+                Text {
+                    text: infoDialog.dialogTitle
+                    font.family: "Roboto"
+                    font.pointSize: 16
+                    font.weight: Font.Bold
+                    color: window.green
+                    Layout.fillWidth: true
+                }
+            }
+                
+                
+            Rectangle {
+                Layout.fillWidth: true
+                height: 1
+                color: window.surface2
             }
 
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.leftMargin: 30
-                anchors.rightMargin: 30
-                anchors.topMargin: 20
-                anchors.bottomMargin: 20
-                spacing: 15
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                color: "transparent"
 
-                RowLayout {
-                    Layout.fillWidth: true
+                Flickable {
+                    id: infoDialogMessageFlickable
+                    anchors.fill: parent
+                    contentWidth: parent.width
+                    contentHeight: infoDialogMessageText.height
+                    clip: true
+                    flickableDirection: Flickable.HorizontalAndVerticalFlick
+                    boundsBehavior: Flickable.StopAtBounds
 
-                    Rectangle {
-                        width: 24
-                        height: 24
-                        color: window.green
-                        radius: 12
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: "✓"
-                            font.family: "Roboto"
-                            font.pointSize: 14
-                            font.weight: Font.Bold
-                            color: window.base
-                        }
+                    ScrollBar.vertical: CustomScrollBar {
+                        orientation: Qt.Vertical
                     }
 
                     Text {
-                        text: infoDialog.dialogTitle
+                        id: infoDialogMessageText
+                        width: parent.width
+                        height: implicitHeight
+                        text: infoDialog.dialogMessage
                         font.family: "Roboto"
-                        font.pointSize: 16
-                        font.weight: Font.Bold
-                        color: window.green
-                        Layout.fillWidth: true
+                        font.pointSize: 11
+                        color: window.text
+                        wrapMode: Text.Wrap
+                        textFormat: Text.StyledText
                     }
                 }
+            }
 
-                Rectangle {
+            Rectangle {
+                Layout.fillWidth: true
+                height: 1
+                color: window.surface2
+                Layout.topMargin: 15
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.topMargin: 15
+
+                Item {
                     Layout.fillWidth: true
-                    height: 1
-                    color: window.surface2
                 }
 
                 Rectangle {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    color: window.surface0
-                    radius: 8
-                    border.color: window.surface1
+                    width: 80
+                    height: 35
+                    color: infoOkMouseArea.containsMouse ? window.blue : window.surface1
+                    radius: 4
+                    border.color: window.blue
                     border.width: 1
 
-                    ScrollView {
+                    Text {
+                        anchors.centerIn: parent
+                        text: "OK"
+                        font.family: "Roboto"
+                        font.pointSize: 10
+                        font.weight: Font.Bold
+                        color: infoOkMouseArea.containsMouse ? window.base : window.text
+                    }
+
+                    MouseArea {
+                        id: infoOkMouseArea
                         anchors.fill: parent
-                        anchors.margins: 15
-                        clip: true
-                        background: Rectangle {
-                            color: "transparent"
-                        }
-
-                        Text {
-                            width: 370
-                            text: infoDialog.dialogMessage
-                            font.family: "Roboto"
-                            font.pointSize: 11
-                            color: window.text
-                            wrapMode: Text.WordWrap
-                            textFormat: Text.PlainText
-                        }
-                    }
-                }
-
-
-                Rectangle {
-                    Layout.fillWidth: true
-                    height: 1
-                    color: window.surface2
-                }
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 10
-
-                    Item {
-                        Layout.fillWidth: true
-                    }
-
-                    Rectangle {
-                        width: 80
-                        height: 35
-                        color: infoOkMouseArea.containsMouse ? window.blue : window.surface1
-                        radius: 4
-                        border.color: window.blue
-                        border.width: 1
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: "OK"
-                            font.family: "Roboto"
-                            font.pointSize: 10
-                            font.weight: Font.Bold
-                            color: infoOkMouseArea.containsMouse ? window.base : window.text
-                        }
-
-                        MouseArea {
-                            id: infoOkMouseArea
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            onClicked: infoDialog.close()
-                        }
+                        hoverEnabled: true
+                        onClicked: infoDialog.close()
                     }
                 }
             }

@@ -2,8 +2,10 @@
 <RCC version="1.0">
     <qresource prefix="/qml">
         <file alias="main.qml">qml/main.qml</file>
-    </qresource>
-    <qresource prefix="/qml">
         <file alias="PluginListItem.qml">qml/PluginListItem.qml</file>
+    </qresource>
+
+    <qresource prefix="/qml/components">
+        <file alias="CustomScrollBar.qml">qml/components/CustomScrollBar.qml</file>
     </qresource>
 </RCC>

@@ -1,9 +1,7 @@
 {
-  "proxy": "",
   "environment_settings": {
     "HTTPS_PROXY": true,
     "HTTP_PROXY": true,
-    "USE_NATIVE_TLS": true,
     "UV_LINK_MODE": true,
     "UV_NATIVE_TLS": true
   }
