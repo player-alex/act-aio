@@ -1312,66 +1312,45 @@ ApplicationWindow {
                         spacing: 4
                         clip: true
 
-                        ScrollBar.vertical: ScrollBar {
-                            id: vbarManual
-                            policy: ScrollBar.AsNeeded
-                            padding: 0
-                            topPadding: 0
-                            bottomPadding: 0
-                            leftPadding: 0
-                            rightPadding: 0
-                            hoverEnabled: true
-                            active: true
+                        ScrollBar.vertical: CustomScrollBar {
                             orientation: Qt.Vertical
-
-                            background: Rectangle {
-                                implicitWidth: 10
-                                color: window.surface0
-                                radius: 5
-                            }
-
-                            contentItem: Rectangle {
-                                implicitWidth: 10
-                                color: window.overlay0
-                                radius: 5
-                                visible: vbarManual.size < 1.0
-                            }
+                            bottomPadding: 8
                         }
 
-                    delegate: Rectangle {
-                        width: manualListView.width - 10
-                        height: 40
-                        color: manualDialog.selectedIndex === index ? window.surface2 : (manualItemMouseArea.containsMouse ? window.surface1 : "transparent")
-                        radius: 4
-                        border.color: manualDialog.selectedIndex === index ? window.blue : "transparent"
-                        border.width: manualDialog.selectedIndex === index ? 2 : 0
+                        delegate: Rectangle {
+                            width: manualListView.width - 10
+                            height: 40
+                            color: manualDialog.selectedIndex === index ? window.surface2 : (manualItemMouseArea.containsMouse ? window.surface1 : "transparent")
+                            radius: 4
+                            border.color: manualDialog.selectedIndex === index ? window.blue : "transparent"
+                            border.width: manualDialog.selectedIndex === index ? 2 : 0
 
-                        property string manualPath: modelData
+                            property string manualPath: modelData
 
-                        Text {
-                            anchors.centerIn: parent
-                            text: {
-                                var parts = manualPath.split(/[\\\/]/)
-                                return parts[parts.length - 1]
+                            Text {
+                                anchors.centerIn: parent
+                                text: {
+                                    var parts = manualPath.split(/[\\\/]/)
+                                    return parts[parts.length - 1]
+                                }
+                                font.family: "Roboto"
+                                font.pointSize: 11
+                                color: manualDialog.selectedIndex === index ? window.blue : window.text
+                                font.weight: manualDialog.selectedIndex === index ? Font.Bold : Font.Normal
+                                elide: Text.ElideMiddle
+                                width: parent.width - 20
                             }
-                            font.family: "Roboto"
-                            font.pointSize: 11
-                            color: manualDialog.selectedIndex === index ? window.blue : window.text
-                            font.weight: manualDialog.selectedIndex === index ? Font.Bold : Font.Normal
-                            elide: Text.ElideMiddle
-                            width: parent.width - 20
-                        }
 
-                        MouseArea {
-                            id: manualItemMouseArea
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            onClicked: {
-                                manualDialog.selectedIndex = index
+                            MouseArea {
+                                id: manualItemMouseArea
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                onClicked: {
+                                    manualDialog.selectedIndex = index
+                                }
                             }
                         }
                     }
-                }
                 }
 
                 Rectangle {
@@ -2078,30 +2057,9 @@ ApplicationWindow {
                         spacing: 4
                         clip: true
 
-                        ScrollBar.vertical: ScrollBar {
-                            id: vbarCommand
-                            policy: ScrollBar.AsNeeded
-                            padding: 0
-                            topPadding: 0
-                            bottomPadding: 0
-                            leftPadding: 0
-                            rightPadding: 0
-                            hoverEnabled: true
-                            active: true
+                        ScrollBar.vertical: CustomScrollBar {
                             orientation: Qt.Vertical
-
-                            background: Rectangle {
-                                implicitWidth: 10
-                                color: window.surface0
-                                radius: 5
-                            }
-
-                            contentItem: Rectangle {
-                                implicitWidth: 10
-                                color: window.overlay0
-                                radius: 5
-                                visible: vbarCommand.size < 1.0
-                            }
+                            bottomPadding: 8
                         }
 
                         delegate: Rectangle {
