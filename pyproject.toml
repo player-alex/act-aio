@@ -23,4 +23,5 @@ members = [
     "plugins/env-printer",
     "plugins/my-plugin",
     "plugins/pdf-to",
+    "plugins/plugin-name-test-abc-def-ghi-jkl-mno",
 ]

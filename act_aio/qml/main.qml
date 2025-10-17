@@ -1151,7 +1151,9 @@ ApplicationWindow {
                     font.pointSize: 16
                     font.weight: Font.Bold
                     color: window.text
-                    Layout.alignment: Qt.AlignHCenter
+                    Layout.fillWidth: true
+                    horizontalAlignment: Text.AlignHCenter
+                    elide: Text.ElideRight
                 }
 
                 Text {
