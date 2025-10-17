@@ -21,6 +21,15 @@ from .plugin_manager import PluginManager
 from .models import PluginListModel
 from .tracking import tracking_context
 
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for Nuitka """
+    if getattr(sys, 'frozen', False):
+        # Nuitka one-file mode
+        base_path = Path(sys.executable).parent
+    else:
+        # Development mode
+        base_path = Path(__file__).parent.parent
+    return base_path / relative_path
 
 def load_posthog_config():
     """Load PostHog configuration from credentials file."""
@@ -196,7 +205,7 @@ def track_script_event(event_name, session_id=None, hardware_uuid=None, start_ti
 
 def load_fonts():
     """Load Roboto fonts from the fonts directory."""
-    fonts_dir = Path(__file__).parent.parent / "fonts"
+    fonts_dir = resource_path("fonts")
 
     if fonts_dir.exists():
         for font_file in fonts_dir.rglob("*.ttf"):

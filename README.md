@@ -249,6 +249,36 @@ your-plugin/
 └── .venv/                  # Auto-created by Act-AIO
 ```
 
+### Command Snippets (Optional) ⚡
+
+Plugins can include command snippets, which are simple scripts that can be executed from the UI. They are defined in `.yaml` files located in a `snippets/commands` directory within your plugin.
+
+**Directory Structure:**
+```
+your-plugin/
+└── snippets/
+    └── commands/
+        └── my-command.yaml
+```
+
+**Snippet Format:**
+
+Each `.yaml` file must contain `name`, `description`, and `command`.
+
+```yaml
+# my-command.yaml
+name: Open Downloads Folder
+description: Opens the user's Downloads folder in the explorer.
+command: start explorer "${ENV:USERPROFILE}\Downloads"
+```
+
+**Macros:**
+
+You can use macros to make commands more flexible:
+- `${PLUGIN_DIR}`: The root directory of the plugin.
+- `${CURRENT_DIR}`: The directory containing the snippet file (`.../snippets/commands`).
+- `${ENV:VAR_NAME}`: The value of an environment variable.
+
 ## 📦 Creating Distribution Packages
 
 Use the included `create-distribution.py` script to create distributable packages:
@@ -355,6 +385,10 @@ POSTHOG_DEBUG=1 uv run python -m act_aio.main
 - ✅ Try running without proxy temporarily (set to empty string "")
 
 </details>
+
+## 🐛 Known Issues
+
+- **PySide6 `6.10.0`**: There is a known bug in this version that may cause unexpected behavior on Windows 11 (x64). If you encounter UI-related problems, consider using a different version. (Reported: 2025-10-16)
 
 ## 📄 License
 

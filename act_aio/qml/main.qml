@@ -9,7 +9,7 @@ ApplicationWindow {
     width: Math.max(600, Screen.width * 0.4)
     height: Math.max(700, Screen.height * 0.75)
     visible: true
-    title: "Actions All-In-One"
+    title: "E&A Automation"
 
     Component.onCompleted: {
         // Center the window on screen
@@ -61,6 +61,14 @@ ApplicationWindow {
 
         onSetupFinished: {
             setupDialog.close()
+        }
+
+        onConfirmationRequested: function(title, message, callbackId) {
+            confirmationDialog.show(title, message, callbackId)
+        }
+
+        onInfoMessageRequested: function(title, message) {
+            infoDialog.show(title, message)
         }
     }
 
@@ -117,7 +125,7 @@ ApplicationWindow {
             // Title (center)
             Text {
                 Layout.fillWidth: true
-                text: "Actions All-In-One"
+                text: "E&A Automation"
                 font.family: "Roboto"
                 font.pointSize: 18
                 font.weight: Font.Bold
@@ -278,12 +286,12 @@ ApplicationWindow {
             radius: 12
             border.color: window.surface1
             border.width: 1
-
-            ListView {
-                id: pluginListView
-                anchors.fill: parent
-                anchors.margins: 12
-                anchors.rightMargin: 2
+                            
+		ListView {                                
+		id: pluginListView                
+		anchors.fill: parent
+                anchors.margins: 0
+                anchors.rightMargin: 0
                 model: pluginListModel
                 spacing: 8
                 clip: true
@@ -315,7 +323,7 @@ ApplicationWindow {
                 }
 
                 delegate: PluginListItem {
-                    width: pluginListView.width - 10
+                    width: pluginListView.width - vbar.width
                     pluginName: model.name
                     pluginDescription: model.description
                     pluginVersion: model.version
@@ -323,6 +331,7 @@ ApplicationWindow {
                     isSelected: index === pluginListModel.selectedIndex
                     manuals: model.manuals
                     tags: model.tags
+                    commands: model.commands
 
                     onClicked: {
                         pluginListModel.selectedIndex = index
@@ -330,6 +339,15 @@ ApplicationWindow {
 
                     onOpenDirectoryButtonClicked: {
                         pluginManager.openPluginDirectory(model.name)
+                    }
+
+                    onCommandButtonClicked: {
+                        console.log("Command button clicked for:", model.name)
+                        console.log("model.commands:", JSON.stringify(model.commands))
+                        commandDialog.pluginName = model.name
+                        commandDialog.commands = model.commands || []
+                        console.log("commandDialog.commands after assignment:", JSON.stringify(commandDialog.commands))
+                        commandDialog.open()
                     }
 
                     onManualButtonClicked: {
@@ -457,6 +475,13 @@ ApplicationWindow {
         y: 80  // Below the top bar
         z: 1000  // Very high z-index
 
+        // Consume clicks inside the menu to prevent closing
+        MouseArea {
+            anchors.fill: parent
+            onClicked: {} // Do nothing, just consume the click
+            hoverEnabled: false
+        }
+
         Column {
             id: importExportColumn
             anchors.centerIn: parent
@@ -474,7 +499,7 @@ ApplicationWindow {
                     text: "Import"
                     font.family: "Roboto"
                     font.pointSize: 10
-                    color: window.text
+                    color: importMouseArea.containsMouse ? window.base : window.text
                 }
 
                 MouseArea {
@@ -492,7 +517,7 @@ ApplicationWindow {
             Rectangle {
                 width: 100
                 height: 30
-                color: exportMouseArea.containsMouse ? window.green : "transparent"
+                color: exportMouseArea.containsMouse && pluginListModel.canLaunch ? window.green : "transparent"
                 radius: 4
                 opacity: pluginListModel.canLaunch ? 1.0 : 0.5
 
@@ -501,17 +526,18 @@ ApplicationWindow {
                     text: "Export"
                     font.family: "Roboto"
                     font.pointSize: 10
-                    color: window.text
+                    color: exportMouseArea.containsMouse && pluginListModel.canLaunch ? window.base : window.text
                 }
 
                 MouseArea {
                     id: exportMouseArea
                     anchors.fill: parent
                     hoverEnabled: true
-                    enabled: pluginListModel.canLaunch
                     onClicked: {
-                        menuDropdown.visible = false
-                        pluginManager.exportPlugin(pluginListModel.selectedPluginName)
+                        if (pluginListModel.canLaunch) {
+                            menuDropdown.visible = false
+                            pluginManager.exportPlugin(pluginListModel.selectedPluginPath)
+                        }
                     }
                 }
             }
@@ -556,6 +582,7 @@ ApplicationWindow {
             onPressed: function(mouse) { mouse.accepted = true }
             onReleased: function(mouse) { mouse.accepted = true }
             onPositionChanged: function(mouse) { mouse.accepted = true }
+            onWheel: { wheel.accepted = true }
         }
 
         // Actual dialog content
@@ -648,14 +675,16 @@ ApplicationWindow {
                 border.color: window.surface1
                 border.width: 1
 
-                ListView {
-                    id: envListView
+                Flickable {
+                    id: envFlickable
                     anchors.fill: parent
                     anchors.margins: 8
                     anchors.rightMargin: 2
-                    model: envListModel
-                    spacing: 2
+                    contentWidth: Math.max(width, envListView.contentItem ? envListView.contentItem.childrenRect.width : 0)
+                    contentHeight: envListView.contentHeight
                     clip: true
+                    flickableDirection: Flickable.HorizontalAndVerticalFlick
+                    boundsBehavior: Flickable.StopAtBounds
 
                     ScrollBar.vertical: ScrollBar {
                         id: vbarSettings
@@ -683,74 +712,138 @@ ApplicationWindow {
                         }
                     }
 
-                delegate: Rectangle {
-                    width: envListView.width - 10
-                    height: 35
-                    color: envItemMouseArea.containsMouse ? window.surface1 : "transparent"
-                    radius: 4
+                    ScrollBar.horizontal: ScrollBar {
+                        id: hbarSettings
+                        policy: ScrollBar.AsNeeded
+                        padding: 0
+                        topPadding: 0
+                        bottomPadding: 0
+                        leftPadding: 0
+                        rightPadding: 10
+                        hoverEnabled: true
+                        active: true
+                        orientation: Qt.Horizontal
 
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: 10
-                        anchors.rightMargin: 10
-                        spacing: 10
+                        background: Rectangle {
+                            implicitHeight: 10
+                            color: window.surface0
+                            radius: 5
+                        }
 
-                        Rectangle {
-                            width: 20
-                            height: 20
-                            color: "transparent"
-                            border.color: model.enabled ? window.blue : window.overlay1
-                            border.width: 2
-                            radius: 3
+                        contentItem: Rectangle {
+                            implicitHeight: 10
+                            color: window.overlay0
+                            radius: 5
+                            visible: hbarSettings.size < 1.0
+                        }
+                    }
 
-                            Rectangle {
-                                anchors.centerIn: parent
-                                width: 10
-                                height: 10
-                                color: window.blue
-                                radius: 2
-                                visible: model.enabled
+                    ListView {
+                        id: envListView
+                        width: Math.max(envFlickable.width, implicitWidth)
+                        height: contentHeight
+                        model: envListModel
+                        spacing: 2
+                        clip: false
+                        interactive: false
+
+                        footer: Item {
+                            width: 1
+                            height: 10
+                        }
+
+                        property real implicitWidth: {
+                            var maxWidth = 0
+                            for (var i = 0; i < count; i++) {
+                                var item = itemAtIndex(i)
+                                if (item) {
+                                    maxWidth = Math.max(maxWidth, item.implicitWidth)
+                                }
+                            }
+                            return maxWidth
+                        }
+
+                        delegate: Rectangle {
+                            width: Math.max(envListView.width, implicitWidth)
+                            height: 35
+                            color: envItemMouseArea.containsMouse ? window.surface1 : "transparent"
+                            radius: 4
+
+                            property real implicitWidth: envRowLayout.implicitWidth
+
+                            RowLayout {
+                                id: envRowLayout
+                                height: parent.height
+                                spacing: 10
+
+                                Item { width: 10; height: 1 }
+
+                                Rectangle {
+                                    width: 20
+                                    height: 20
+                                    color: "transparent"
+                                    border.color: model.enabled ? window.blue : window.overlay1
+                                    border.width: 2
+                                    radius: 3
+
+                                    Rectangle {
+                                        anchors.centerIn: parent
+                                        width: 10
+                                        height: 10
+                                        color: window.blue
+                                        radius: 2
+                                        visible: model.enabled
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        onClicked: {
+                                            var newEnabled = !model.enabled
+                                            envListModel.setProperty(index, "enabled", newEnabled)
+                                            settingsDialog.envSettings[model.key] = newEnabled
+                                            console.log("Updated", model.key, "to", newEnabled)
+                                            console.log("Current envSettings:", JSON.stringify(settingsDialog.envSettings))
+                                        }
+                                    }
+                                }
+
+                                Text {
+                                    id: keyText
+                                    text: model.key
+                                    font.family: "Roboto"
+                                    font.pointSize: 10
+                                    font.weight: Font.Bold
+                                    color: window.text
+                                    Layout.minimumWidth: contentWidth
+                                }
+
+                                Rectangle {
+                                    width: 1
+                                    height: 20
+                                    color: window.overlay0
+                                }
+
+                                Text {
+                                    id: valueText
+                                    text: model.value
+                                    font.family: "Roboto"
+                                    font.pointSize: 10
+                                    color: window.subtext0
+                                    Layout.minimumWidth: contentWidth
+                                }
+
+                                Item { width: 10; height: 1 }
                             }
 
                             MouseArea {
+                                id: envItemMouseArea
                                 anchors.fill: parent
-                                onClicked: {
-                                    var newEnabled = !model.enabled
-                                    envListModel.setProperty(index, "enabled", newEnabled)
-                                    settingsDialog.envSettings[model.key] = newEnabled
-                                    console.log("Updated", model.key, "to", newEnabled)
-                                    console.log("Current envSettings:", JSON.stringify(settingsDialog.envSettings))
-                                }
+                                hoverEnabled: true
+                                acceptedButtons: Qt.NoButton
                             }
                         }
-
-                        Text {
-                            text: model.key
-                            font.family: "Roboto"
-                            font.pointSize: 10
-                            font.weight: Font.Bold
-                            color: window.text
-                            Layout.preferredWidth: 120
-                        }
-
-                        Text {
-                            text: model.value
-                            font.family: "Roboto"
-                            font.pointSize: 10
-                            color: window.subtext0
-                            Layout.fillWidth: true
-                            elide: Text.ElideRight
-                        }
-                    }
-
-                    MouseArea {
-                        id: envItemMouseArea
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        acceptedButtons: Qt.NoButton
                     }
                 }
-            }
             }
 
             Rectangle {
@@ -768,7 +861,7 @@ ApplicationWindow {
                 }
 
                 Rectangle {
-                    width: 80
+                    width: 100
                     height: 35
                     color: cancelMouseArea.containsMouse ? window.surface1 : window.surface0
                     radius: 4
@@ -777,7 +870,7 @@ ApplicationWindow {
 
                     Text {
                         anchors.centerIn: parent
-                        text: "Cancel"
+                        text: "Close"
                         font.family: "Roboto"
                         font.pointSize: 10
                         color: window.text
@@ -792,7 +885,7 @@ ApplicationWindow {
                 }
 
                 Rectangle {
-                    width: 80
+                    width: 100
                     height: 35
                     color: saveMouseArea.containsMouse ? window.blue : window.surface1
                     radius: 4
@@ -868,6 +961,7 @@ ApplicationWindow {
         MouseArea {
             anchors.fill: parent
             onClicked: {} // Do nothing, just consume the click
+            onWheel: { wheel.accepted = true }
         }
 
         ColumnLayout {
@@ -965,6 +1059,7 @@ ApplicationWindow {
                 }
             }
 
+
             Rectangle {
                 Layout.fillWidth: true
                 height: 1
@@ -1033,6 +1128,7 @@ ApplicationWindow {
             onPressed: {}
             onReleased: {}
             onPositionChanged: {}
+            onWheel: { wheel.accepted = true }
         }
 
         Rectangle {
@@ -1131,6 +1227,7 @@ ApplicationWindow {
             onPressed: mouse.accepted = true
             onReleased: mouse.accepted = true
             onPositionChanged: mouse.accepted = true
+            onWheel: { wheel.accepted = true }
         }
 
         Rectangle {
@@ -1287,6 +1384,10 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     spacing: 10
 
+                    Item {
+                        Layout.fillWidth: true
+                    }
+
                     Rectangle {
                         width: 80
                         height: 35
@@ -1311,10 +1412,6 @@ ApplicationWindow {
                         }
                     }
 
-                    Item {
-                        Layout.fillWidth: true
-                    }
-
                     Rectangle {
                         width: 80
                         height: 35
@@ -1329,7 +1426,7 @@ ApplicationWindow {
                             font.family: "Roboto"
                             font.pointSize: 10
                             font.weight: Font.Bold
-                            color: manualDialog.selectedIndex >= 0 ? window.text : window.subtext0
+                            color: manualOpenMouseArea.containsMouse ? window.base : (manualDialog.selectedIndex >= 0 ? window.text : window.subtext0)
                         }
 
                         MouseArea {
@@ -1356,5 +1453,633 @@ ApplicationWindow {
         visible: menuDropdown.visible
         onClicked: menuDropdown.visible = false
         z: 50
+    }
+
+    // Confirmation Dialog (Yes/No)
+    Rectangle {
+        id: confirmationDialog
+        anchors.fill: parent
+        color: "#80000000"
+        visible: false
+        z: 3500
+
+        property string dialogTitle: ""
+        property string dialogMessage: ""
+        property string callbackId: ""
+
+        function show(title, message, cbId) {
+            dialogTitle = title
+            dialogMessage = message
+            callbackId = cbId
+            visible = true
+        }
+
+        function close() {
+            visible = false
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            hoverEnabled: true
+            onClicked: {}
+            onPressed: function(mouse) { mouse.accepted = true }
+            onReleased: function(mouse) { mouse.accepted = true }
+            onPositionChanged: function(mouse) { mouse.accepted = true }
+            onWheel: { wheel.accepted = true }
+        }
+
+        Rectangle {
+            width: 450
+            height: 250
+            color: window.base
+            radius: 12
+            border.color: window.yellow
+            border.width: 2
+            anchors.centerIn: parent
+
+            MouseArea {
+                anchors.fill: parent
+                onClicked: {}
+            }
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 30
+                anchors.rightMargin: 30
+                anchors.topMargin: 20
+                anchors.bottomMargin: 20
+                spacing: 15
+
+                RowLayout {
+                    Layout.fillWidth: true
+
+                    Rectangle {
+                        width: 24
+                        height: 24
+                        color: window.yellow
+                        radius: 12
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "?"
+                            font.family: "Roboto"
+                            font.pointSize: 14
+                            font.weight: Font.Bold
+                            color: window.base
+                        }
+                    }
+
+                    Text {
+                        text: confirmationDialog.dialogTitle
+                        font.family: "Roboto"
+                        font.pointSize: 16
+                        font.weight: Font.Bold
+                        color: window.yellow
+                        Layout.fillWidth: true
+                    }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 1
+                    color: window.surface2
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    color: window.surface0
+                    radius: 8
+                    border.color: window.surface1
+                    border.width: 1
+
+                    ScrollView {
+                        anchors.fill: parent
+                        anchors.margins: 15
+                        clip: true
+                        background: Rectangle {
+                            color: "transparent"
+                        }
+
+                        Text {
+                            width: 370
+                            text: confirmationDialog.dialogMessage
+                            font.family: "Roboto"
+                            font.pointSize: 11
+                            color: window.text
+                            wrapMode: Text.WordWrap
+                            textFormat: Text.PlainText
+                        }
+                    }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 1
+                    color: window.surface2
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10
+
+                    Item {
+                        Layout.fillWidth: true
+                    }
+
+                    Rectangle {
+                        width: 80
+                        height: 35
+                        color: confirmNoMouseArea.containsMouse ? window.surface1 : window.surface0
+                        radius: 4
+                        border.color: window.overlay0
+                        border.width: 1
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "No"
+                            font.family: "Roboto"
+                            font.pointSize: 10
+                            color: window.text
+                        }
+
+                        MouseArea {
+                            id: confirmNoMouseArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onClicked: {
+                                pluginManager.handleConfirmationResponse(confirmationDialog.callbackId, false)
+                                confirmationDialog.close()
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        width: 80
+                        height: 35
+                        color: confirmYesMouseArea.containsMouse ? window.blue : window.surface1
+                        radius: 4
+                        border.color: window.blue
+                        border.width: 1
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "Yes"
+                            font.family: "Roboto"
+                            font.pointSize: 10
+                            font.weight: Font.Bold
+                            color: confirmYesMouseArea.containsMouse ? window.base : window.text
+                        }
+
+                        MouseArea {
+                            id: confirmYesMouseArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onClicked: {
+                                pluginManager.handleConfirmationResponse(confirmationDialog.callbackId, true)
+                                confirmationDialog.close()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Info Dialog (OK only)
+    Rectangle {
+        id: infoDialog
+        anchors.fill: parent
+        color: "#80000000"
+        visible: false
+        z: 3500
+
+        property string dialogTitle: ""
+        property string dialogMessage: ""
+
+        function show(title, message) {
+            dialogTitle = title
+            dialogMessage = message
+            visible = true
+        }
+
+        function close() {
+            visible = false
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            hoverEnabled: true
+            onClicked: {}
+            onPressed: function(mouse) { mouse.accepted = true }
+            onReleased: function(mouse) { mouse.accepted = true }
+            onPositionChanged: function(mouse) { mouse.accepted = true }
+            onWheel: { wheel.accepted = true }
+        }
+
+        Rectangle {
+            width: 450
+            height: 250
+            color: window.base
+            radius: 12
+            border.color: window.green
+            border.width: 2
+            anchors.centerIn: parent
+
+            MouseArea {
+                anchors.fill: parent
+                onClicked: {}
+            }
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 30
+                anchors.rightMargin: 30
+                anchors.topMargin: 20
+                anchors.bottomMargin: 20
+                spacing: 15
+
+                RowLayout {
+                    Layout.fillWidth: true
+
+                    Rectangle {
+                        width: 24
+                        height: 24
+                        color: window.green
+                        radius: 12
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "✓"
+                            font.family: "Roboto"
+                            font.pointSize: 14
+                            font.weight: Font.Bold
+                            color: window.base
+                        }
+                    }
+
+                    Text {
+                        text: infoDialog.dialogTitle
+                        font.family: "Roboto"
+                        font.pointSize: 16
+                        font.weight: Font.Bold
+                        color: window.green
+                        Layout.fillWidth: true
+                    }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 1
+                    color: window.surface2
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    color: window.surface0
+                    radius: 8
+                    border.color: window.surface1
+                    border.width: 1
+
+                    ScrollView {
+                        anchors.fill: parent
+                        anchors.margins: 15
+                        clip: true
+                        background: Rectangle {
+                            color: "transparent"
+                        }
+
+                        Text {
+                            width: 370
+                            text: infoDialog.dialogMessage
+                            font.family: "Roboto"
+                            font.pointSize: 11
+                            color: window.text
+                            wrapMode: Text.WordWrap
+                            textFormat: Text.PlainText
+                        }
+                    }
+                }
+
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 1
+                    color: window.surface2
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10
+
+                    Item {
+                        Layout.fillWidth: true
+                    }
+
+                    Rectangle {
+                        width: 80
+                        height: 35
+                        color: infoOkMouseArea.containsMouse ? window.blue : window.surface1
+                        radius: 4
+                        border.color: window.blue
+                        border.width: 1
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "OK"
+                            font.family: "Roboto"
+                            font.pointSize: 10
+                            font.weight: Font.Bold
+                            color: infoOkMouseArea.containsMouse ? window.base : window.text
+                        }
+
+                        MouseArea {
+                            id: infoOkMouseArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onClicked: infoDialog.close()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Command Dialog
+    Rectangle {
+        id: commandDialog
+        anchors.fill: parent
+        color: "#80000000"
+        visible: false
+        z: 2000
+
+        property string pluginName: ""
+        property var commands: []
+        property int selectedIndex: -1
+
+        function open() {
+            selectedIndex = -1
+            visible = true
+        }
+
+        function close() {
+            visible = false
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            hoverEnabled: true
+            onPressed: mouse.accepted = true
+            onReleased: mouse.accepted = true
+            onPositionChanged: mouse.accepted = true
+            onWheel: { wheel.accepted = true }
+        }
+
+        Rectangle {
+            id: commandDialogContent
+            width: 600
+            height: 450
+            color: window.base
+            radius: 12
+            border.color: window.surface1
+            border.width: 2
+            anchors.centerIn: parent
+
+            MouseArea {
+                anchors.fill: parent
+                onClicked: {}
+            }
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 30
+                anchors.rightMargin: 30
+                anchors.topMargin: 20
+                anchors.bottomMargin: 20
+                spacing: 15
+
+                RowLayout {
+                    Layout.fillWidth: true
+
+                    Text {
+                        text: "Command Snippets - " + commandDialog.pluginName
+                        font.family: "Roboto"
+                        font.pointSize: 16
+                        font.weight: Font.Bold
+                        color: window.text
+                        Layout.fillWidth: true
+                    }
+
+                    Rectangle {
+                        width: 30
+                        height: 30
+                        color: commandCloseMouseArea.containsMouse ? window.red : "transparent"
+                        radius: 4
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "×"
+                            font.family: "Roboto"
+                            font.pointSize: 16
+                            font.weight: Font.Bold
+                            color: window.text
+                        }
+
+                        MouseArea {
+                            id: commandCloseMouseArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onClicked: commandDialog.close()
+                        }
+                    }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 1
+                    color: window.surface2
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    color: window.surface0
+                    radius: 8
+                    border.color: window.surface1
+                    border.width: 1
+
+                    ListView {
+                        id: commandListView
+                        anchors.fill: parent
+                        anchors.margins: 8
+                        anchors.rightMargin: 2
+                        model: commandDialog.commands
+                        spacing: 4
+                        clip: true
+
+                        ScrollBar.vertical: ScrollBar {
+                            id: vbarCommand
+                            policy: ScrollBar.AsNeeded
+                            padding: 0
+                            topPadding: 0
+                            bottomPadding: 0
+                            leftPadding: 0
+                            rightPadding: 0
+                            hoverEnabled: true
+                            active: true
+                            orientation: Qt.Vertical
+
+                            background: Rectangle {
+                                implicitWidth: 10
+                                color: window.surface0
+                                radius: 5
+                            }
+
+                            contentItem: Rectangle {
+                                implicitWidth: 10
+                                color: window.overlay0
+                                radius: 5
+                                visible: vbarCommand.size < 1.0
+                            }
+                        }
+
+                        delegate: Rectangle {
+                            width: commandListView.width - 10
+                            height: commandItemColumn.height + 20
+                            color: commandDialog.selectedIndex === index ? window.surface2 : (commandItemMouseArea.containsMouse ? window.surface1 : "transparent")
+                            radius: 4
+                            border.color: commandDialog.selectedIndex === index ? window.blue : "transparent"
+                            border.width: commandDialog.selectedIndex === index ? 2 : 0
+
+                            property var commandData: modelData
+
+                            ColumnLayout {
+                                id: commandItemColumn
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.top: parent.top
+                                anchors.leftMargin: 10
+                                anchors.rightMargin: 10
+                                anchors.topMargin: 10
+                                spacing: 5
+
+                                Text {
+                                    text: commandData.name
+                                    font.family: "Roboto"
+                                    font.pointSize: 12
+                                    font.weight: Font.Bold
+                                    color: commandDialog.selectedIndex === index ? window.blue : window.text
+                                    Layout.fillWidth: true
+                                    elide: Text.ElideRight
+                                }
+
+                                Text {
+                                    text: "- " + (commandData.description || "")
+                                    font.family: "Roboto"
+                                    font.pointSize: 10
+                                    color: window.subtext0
+                                    Layout.fillWidth: true
+                                    wrapMode: Text.WordWrap
+                                    visible: commandData.description && commandData.description.length > 0
+                                }
+
+                                Text {
+                                    text: commandData.command
+                                    font.family: "Roboto Mono"
+                                    font.pointSize: 9
+                                    color: window.overlay2
+                                    Layout.fillWidth: true
+                                    elide: Text.ElideRight
+                                    visible: false
+                                }
+                            }
+
+                            MouseArea {
+                                id: commandItemMouseArea
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                onClicked: {
+                                    commandDialog.selectedIndex = index
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 1
+                    color: window.surface2
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10
+
+                    Item {
+                        Layout.fillWidth: true
+                    }
+
+                    Rectangle {
+                        width: 100
+                        height: 35
+                        color: commandCancelMouseArea.containsMouse ? window.surface1 : window.surface0
+                        radius: 4
+                        border.color: window.overlay0
+                        border.width: 1
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "Close"
+                            font.family: "Roboto"
+                            font.pointSize: 10
+                            color: window.text
+                        }
+
+                        MouseArea {
+                            id: commandCancelMouseArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onClicked: commandDialog.close()
+                        }
+                    }
+
+                    Rectangle {
+                        width: 100
+                        height: 35
+                        color: commandDialog.selectedIndex >= 0 ? (commandExecuteMouseArea.containsMouse ? window.blue : window.surface1) : window.overlay0
+                        radius: 4
+                        border.color: commandDialog.selectedIndex >= 0 ? window.blue : window.overlay1
+                        border.width: 2
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "Execute"
+                            font.family: "Roboto"
+                            font.pointSize: 10
+                            font.weight: Font.Bold
+                            color: commandExecuteMouseArea.containsMouse ? window.base : (commandDialog.selectedIndex >= 0 ? window.text : window.subtext0)
+                        }
+
+                        MouseArea {
+                            id: commandExecuteMouseArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            enabled: commandDialog.selectedIndex >= 0
+                            onClicked: {
+                                if (commandDialog.selectedIndex >= 0) {
+                                    var selectedCommand = commandDialog.commands[commandDialog.selectedIndex]
+                                    pluginManager.executeCommand(
+                                        commandDialog.pluginName,
+                                        selectedCommand.command
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }

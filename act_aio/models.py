@@ -21,6 +21,7 @@ class PluginListModel(QAbstractListModel):
     ExecutableRole = Qt.UserRole + 5
     ManualsRole = Qt.UserRole + 6
     TagsRole = Qt.UserRole + 7
+    CommandsRole = Qt.UserRole + 8
 
     # Signals
     pluginManagerChanged = Signal()
@@ -103,6 +104,16 @@ class PluginListModel(QAbstractListModel):
         if 0 <= self._selected_index < len(self._filtered_plugins):
             return self._filtered_plugins[self._selected_index].get("name", "")
         return ""
+    
+    @Property(str, notify=selectedIndexChanged)
+    def selectedPluginPath(self) -> str:
+        """Get the path of the currently selected plugin."""
+        if not self.hasSelection:
+            return ""
+        
+        if 0 <= self._selected_index < len(self._filtered_plugins):
+            return self._filtered_plugins[self._selected_index].get("path", "")
+        return ""
 
     def roleNames(self) -> Dict[int, bytes]:
         """Define role names for QML access."""
@@ -113,7 +124,8 @@ class PluginListModel(QAbstractListModel):
             self.PathRole: b"path",
             self.ExecutableRole: b"executable",
             self.ManualsRole: b"manuals",
-            self.TagsRole: b"tags"
+            self.TagsRole: b"tags",
+            self.CommandsRole: b"commands"
         }
 
     def rowCount(self, parent=QModelIndex()) -> int:
@@ -144,6 +156,8 @@ class PluginListModel(QAbstractListModel):
             return plugin.get("manuals", [])
         elif role == self.TagsRole:
             return plugin.get("tags", [])
+        elif role == self.CommandsRole:
+            return plugin.get("commands", [])
 
         return None
 

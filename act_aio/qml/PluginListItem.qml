@@ -12,10 +12,22 @@ Rectangle {
     property bool isSelected: false
     property var manuals: []
     property var tags: []
+    property var commands: []
 
     signal clicked()
     signal manualButtonClicked()
     signal openDirectoryButtonClicked()
+    signal commandButtonClicked()
+
+    Component.onCompleted: {
+        if (pluginName === "sample-plugin") {
+            console.log("PluginListItem loaded for sample-plugin")
+            console.log("  commands:", JSON.stringify(commands))
+            console.log("  commands.length:", commands ? commands.length : "undefined")
+            console.log("  manuals:", JSON.stringify(manuals))
+            console.log("  manuals.length:", manuals ? manuals.length : "undefined")
+        }
+    }
 
     // Catppuccin colors (inherited from parent)
     property color surface0: "#313244"
@@ -182,6 +194,58 @@ Rectangle {
                         onClicked: function(mouse) {
                             mouse.accepted = true
                             root.openDirectoryButtonClicked()
+                        }
+                    }
+                }
+
+                Rectangle {
+                    id: commandButton
+                    width: 20
+                    height: 20
+                    radius: 4
+                    color: commandMouseArea.containsMouse ? root.blue : root.surface1
+                    border.color: root.overlay0
+                    border.width: 1
+                    visible: root.commands && root.commands.length > 0
+
+                    Canvas {
+                        id: commandIcon
+                        width: 14
+                        height: 14
+                        anchors.centerIn: parent
+
+                        onPaint: {
+                            var ctx = getContext("2d")
+                            ctx.fillStyle = root.text
+                            ctx.strokeStyle = root.text
+                            ctx.lineWidth = 1.5
+
+                            // Draw command/terminal icon (like ">_")
+                            ctx.beginPath()
+                            // ">" symbol
+                            ctx.moveTo(2, 4)
+                            ctx.lineTo(6, 7)
+                            ctx.lineTo(2, 10)
+                            ctx.stroke()
+
+                            // "_" symbol
+                            ctx.beginPath()
+                            ctx.moveTo(7, 10)
+                            ctx.lineTo(12, 10)
+                            ctx.stroke()
+                        }
+                    }
+
+                    ToolTip.visible: commandMouseArea.containsMouse
+                    ToolTip.text: "Run commands"
+
+                    MouseArea {
+                        id: commandMouseArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        onClicked: function(mouse) {
+                            mouse.accepted = true
+                            root.commandButtonClicked()
                         }
                     }
                 }

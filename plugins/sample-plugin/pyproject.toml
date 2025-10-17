@@ -2,12 +2,9 @@
 name = "sample-plugin"
 version = "1.0.0"
 description = "A sample plugin to demonstrate the Actions All-In-One launcher"
+tags = ["#Utility", "Automation", "Example"]
 requires-python = ">=3.8"
 dependencies = [
     "colorama>=0.4.0",
     "requests>=2.28.0",
 ]
-
-
-[project.optional-metadata]
-tags = ["#Python", "#Sample"]

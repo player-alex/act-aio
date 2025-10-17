@@ -21,6 +21,7 @@ plugins/*
 # IDE and development
 .claude/
 dev_ctx.md
+dev-ctx.md
 .pytest_cache/
 .DS_Store
 Thumbs.db

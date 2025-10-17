@@ -15,11 +15,11 @@ call :showEnvVariables
 
 echo.
 echo Running Act-AIO...
-start "Act-AIO GUI" uv run pythonw -m act_aio.main
+uv run python -m act_aio.main
 
 echo.
 echo Act-AIO has finished.
-exit
+pause
 
 :loadEnvVar
 :: Function to load environment variable from .env file
@@ -127,3 +127,6 @@ if !count! equ 0 (
 
 :endShowEnvVariables
 goto :eof
+
+:end
+pause

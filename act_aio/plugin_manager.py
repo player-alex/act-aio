@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import subprocess
 import logging
@@ -6,6 +7,7 @@ import zipfile
 import shutil
 import tempfile
 import json
+import yaml
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 try:
@@ -17,6 +19,13 @@ from PySide6.QtCore import QObject, Signal, Slot, Property, QThread
 from PySide6.QtWidgets import QFileDialog, QMessageBox
 
 
+# Environment variable filter constants
+# These prefixes/patterns will be filtered out from system environment when launching plugins
+ENV_FILTER_STARTSWITH = ['QT_', 'PYSIDE_']  # Filter keys starting with these prefixes
+ENV_FILTER_ENDSWITH = []  # Filter keys ending with these suffixes (for future use)
+ENV_FILTER_CONTAINS = []  # Filter keys containing these strings (for future use)
+
+
 class Plugin:
     """Represents a single plugin with its metadata."""
 
@@ -25,7 +34,14 @@ class Plugin:
         self.name = metadata.get("name", "Unknown")
         self.description = metadata.get("description", "No description")
         self.version = metadata.get("version", "0.0.0")
-        self.tags = metadata.get("tags", [])
+
+        # Robustly parse tags
+        raw_tags = metadata.get("tags", [])
+        if isinstance(raw_tags, list):
+            self.tags = [str(tag) for tag in raw_tags]
+        else:
+            self.tags = []
+
         self.main_file = path / "main.py"
 
     @property
@@ -64,6 +80,8 @@ class PluginManager(QObject):
     errorOccurred = Signal(str, str)  # title, message
     setupStarted = Signal(str)  # plugin name
     setupFinished = Signal()
+    confirmationRequested = Signal(str, str, str)  # title, message, callback_id
+    infoMessageRequested = Signal(str, str)  # title, message
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -77,6 +95,7 @@ class PluginManager(QObject):
         self._pending_plugin = None
         self._env_file = Path(".env")
         self._environment_settings = {}  # Dictionary to track enabled/disabled environment variables
+        self._pending_import_data = None  # Store import data while waiting for confirmation
         self._load_settings()
         self.scan_plugins()
 
@@ -181,21 +200,25 @@ class PluginManager(QObject):
             import traceback
             logging.error(f"Traceback: {traceback.format_exc()}")
 
-    @Property(list, notify=pluginsChanged)
+    @Property('QVariant', notify=pluginsChanged)
     def plugins(self) -> List[Dict[str, Any]]:
         """Return plugins as a list of dictionaries for QML consumption."""
-        return [
-            {
+        result = []
+        for plugin in self._plugins:
+            commands = self._get_plugin_commands(plugin)
+            logging.info(f"plugins() property - Plugin '{plugin.name}' commands: {commands}")
+            plugin_dict = {
                 "name": plugin.name,
                 "description": plugin.description,
                 "version": plugin.version,
                 "path": str(plugin.path),
                 "executable": plugin.is_executable,
-                "manuals": self._get_plugin_manuals(plugin.name),
-                "tags": plugin.tags
+                "manuals": self._get_plugin_manuals(plugin),
+                "tags": plugin.tags,
+                "commands": commands
             }
-            for plugin in self._plugins
-        ]
+            result.append(plugin_dict)
+        return result
 
     @Slot()
     def scan_plugins(self):
@@ -635,45 +658,52 @@ class PluginManager(QObject):
                 # Check if plugin already exists
                 target_dir = self._plugins_dir / plugin_name
                 if target_dir.exists():
-                    reply = QMessageBox.question(
-                        None,
+                    # Copy to temporary location in plugins directory before asking for confirmation
+                    temp_import_dir = self._plugins_dir / f".temp_import_{plugin_name}"
+
+                    # Remove temp import dir if it exists
+                    if temp_import_dir.exists():
+                        shutil.rmtree(temp_import_dir)
+
+                    # Copy to temp location
+                    shutil.copytree(source_dir, temp_import_dir)
+
+                    # Store import data and request confirmation
+                    self._pending_import_data = {
+                        'source_dir': temp_import_dir,
+                        'target_dir': target_dir,
+                        'plugin_name': plugin_name
+                    }
+                    self.confirmationRequested.emit(
                         "Plugin exists",
                         f"Plugin '{plugin_name}' already exists. Do you want to overwrite it?",
-                        QMessageBox.Yes | QMessageBox.No,
-                        QMessageBox.No
+                        "import_overwrite"
                     )
-                    if reply != QMessageBox.Yes:
-                        return
-
-                    # Remove existing plugin
-                    shutil.rmtree(target_dir)
+                    return
 
                 # Copy plugin to plugins directory
-                shutil.copytree(source_dir, target_dir)
-                logging.info(f"Plugin '{plugin_name}' imported successfully")
-
-                # Refresh plugin list
-                self.scan_plugins()
-
-                self._show_info("Import successful", f"Plugin '{plugin_name}' has been imported successfully.")
+                self._complete_import(source_dir, target_dir, plugin_name)
 
         except Exception as e:
             logging.error(f"Error importing plugin: {e}")
             self._show_error("Import failed", f"Failed to import plugin: {e}")
 
     @Slot(str)
-    def exportPlugin(self, plugin_name: str):
+    def exportPlugin(self, plugin_path: str):
         """Export a plugin to a zip file."""
         try:
-            if not plugin_name:
+            if not plugin_path:
                 self._show_error("No selection", "Please select a plugin to export.")
                 return
-
-            plugin_dir = self._plugins_dir / plugin_name
-            if not plugin_dir.exists():
-                self._show_error("Plugin not found", f"Plugin directory '{plugin_name}' not found.")
+    
+            plugin_dir = Path(plugin_path)
+            if not plugin_dir.exists() or not plugin_dir.is_dir():
+                self._show_error("Plugin not found", f"Plugin directory '{plugin_path}' not found.")
                 return
-
+    
+            # Use the directory name for the zip file name
+            plugin_name = plugin_dir.name
+    
             # Open save dialog
             file_path, _ = QFileDialog.getSaveFileName(
                 None,
@@ -681,12 +711,12 @@ class PluginManager(QObject):
                 f"{plugin_name}.zip",
                 "Zip Files (*.zip)"
             )
-
+    
             if not file_path:
                 return
-
+    
             file_path = Path(file_path)
-
+    
             # Create zip file
             try:
                 with zipfile.ZipFile(file_path, 'w', zipfile.ZIP_DEFLATED) as zip_ref:
@@ -696,17 +726,17 @@ class PluginManager(QObject):
                             # Skip certain files/directories
                             if any(skip in file.parts for skip in ['.venv', '__pycache__', '.git', '.lock']):
                                 continue
-
+    
                             # Calculate relative path from plugin directory
                             rel_path = file.relative_to(plugin_dir.parent)
                             zip_ref.write(file, rel_path)
-
+    
                 logging.info(f"Plugin '{plugin_name}' exported to {file_path}")
-                self._show_info("Export successful", f"Plugin '{plugin_name}' has been exported to:\n{file_path}")
-
+                self._show_info("Export successful", f"Plugin '{plugin_name}' has been exported to:\\n{file_path}")
+    
             except Exception as e:
                 self._show_error("Export failed", f"Failed to create zip file: {e}")
-
+    
         except Exception as e:
             logging.error(f"Error exporting plugin: {e}")
             self._show_error("Export failed", f"Failed to export plugin: {e}")
@@ -716,16 +746,114 @@ class PluginManager(QObject):
         self.errorOccurred.emit(title, message)
 
     def _show_info(self, title: str, message: str):
-        """Show info message box."""
-        msg = QMessageBox()
-        msg.setIcon(QMessageBox.Information)
-        msg.setWindowTitle(title)
-        msg.setText(message)
-        msg.exec()
+        """Show info message using QML signal."""
+        self.infoMessageRequested.emit(title, message)
+
+    def _complete_import(self, source_dir: Path, target_dir: Path, plugin_name: str):
+        """Complete the import process by copying files and refreshing."""
+        try:
+            # Copy plugin to plugins directory
+            shutil.copytree(source_dir, target_dir)
+            logging.info(f"Plugin '{plugin_name}' imported successfully")
+
+            # Clean up temporary import directory if it exists
+            temp_import_dir = self._plugins_dir / f".temp_import_{plugin_name}"
+            if temp_import_dir.exists() and source_dir == temp_import_dir:
+                shutil.rmtree(temp_import_dir)
+                logging.info(f"Cleaned up temporary import directory: {temp_import_dir}")
+
+            # Refresh plugin list
+            self.scan_plugins()
+
+            self._show_info("Import successful", f"Plugin '{plugin_name}' has been imported successfully.")
+        except Exception as e:
+            logging.error(f"Error completing import: {e}")
+            self._show_error("Import failed", f"Failed to import plugin: {e}")
+
+            # Still try to clean up temp directory on error
+            try:
+                temp_import_dir = self._plugins_dir / f".temp_import_{plugin_name}"
+                if temp_import_dir.exists():
+                    shutil.rmtree(temp_import_dir)
+                    logging.info(f"Cleaned up temporary import directory after error: {temp_import_dir}")
+            except Exception as cleanup_error:
+                logging.error(f"Failed to clean up temp directory: {cleanup_error}")
+
+    @Slot(str, bool)
+    def handleConfirmationResponse(self, callback_id: str, accepted: bool):
+        """Handle confirmation dialog response from QML."""
+        if callback_id == "import_overwrite":
+            if accepted and self._pending_import_data:
+                try:
+                    # Remove existing plugin
+                    shutil.rmtree(self._pending_import_data['target_dir'])
+                    # Complete import
+                    self._complete_import(
+                        self._pending_import_data['source_dir'],
+                        self._pending_import_data['target_dir'],
+                        self._pending_import_data['plugin_name']
+                    )
+                except Exception as e:
+                    logging.error(f"Error overwriting plugin: {e}")
+                    self._show_error("Import failed", f"Failed to overwrite plugin: {e}")
+
+                    # Clean up temp directory on error
+                    try:
+                        temp_import_dir = self._plugins_dir / f".temp_import_{self._pending_import_data['plugin_name']}"
+                        if temp_import_dir.exists():
+                            shutil.rmtree(temp_import_dir)
+                            logging.info(f"Cleaned up temporary import directory after error: {temp_import_dir}")
+                    except Exception as cleanup_error:
+                        logging.error(f"Failed to clean up temp directory: {cleanup_error}")
+                finally:
+                    self._pending_import_data = None
+            else:
+                # User cancelled - clean up temp directory
+                if self._pending_import_data:
+                    try:
+                        temp_import_dir = self._plugins_dir / f".temp_import_{self._pending_import_data['plugin_name']}"
+                        if temp_import_dir.exists():
+                            shutil.rmtree(temp_import_dir)
+                            logging.info(f"Cleaned up temporary import directory after cancellation: {temp_import_dir}")
+                    except Exception as cleanup_error:
+                        logging.error(f"Failed to clean up temp directory: {cleanup_error}")
+                self._pending_import_data = None
 
     def _get_environment_with_proxy(self) -> Dict[str, str]:
         """Get environment variables with proxy settings and enabled .env variables."""
         env = os.environ.copy()
+
+        # Filter out environment variables based on defined patterns
+        filtered_keys = []
+        for key in list(env.keys()):
+            should_filter = False
+
+            # Check startswith filters
+            for prefix in ENV_FILTER_STARTSWITH:
+                if key.startswith(prefix):
+                    should_filter = True
+                    break
+
+            # Check endswith filters (for future use)
+            if not should_filter:
+                for suffix in ENV_FILTER_ENDSWITH:
+                    if key.endswith(suffix):
+                        should_filter = True
+                        break
+
+            # Check contains filters (for future use)
+            if not should_filter:
+                for pattern in ENV_FILTER_CONTAINS:
+                    if pattern in key:
+                        should_filter = True
+                        break
+
+            if should_filter:
+                filtered_keys.append(key)
+                del env[key]
+
+        if filtered_keys:
+            logging.info(f"Filtered out {len(filtered_keys)} system environment variables: {filtered_keys}")
 
         # Add proxy settings if configured
         if self._proxy_url:
@@ -785,10 +913,8 @@ class PluginManager(QObject):
 
         return '\n'.join(echo_commands)
 
-    def _get_plugin_manuals(self, plugin_name: str) -> List[str]:
+    def _get_plugin_manuals(self, plugin: Plugin) -> List[str]:
         """Get list of manual files for a plugin."""
-        # Find the plugin by name to get its actual directory path
-        plugin = self._find_plugin_by_name(plugin_name)
         if not plugin:
             return []
 
@@ -845,3 +971,142 @@ class PluginManager(QObject):
         except Exception as e:
             logging.error(f"Failed to open plugin directory: {e}")
             self.errorOccurred.emit("Failed to Open Directory", f"Could not open plugin directory: {e}")
+
+    def _get_plugin_commands(self, plugin: Plugin) -> List[Dict[str, str]]:
+        """Get list of command snippets for a plugin."""
+        if not plugin:
+            logging.debug(f"Plugin object not found for commands")
+            return []
+
+        commands_dir = plugin.path / "snippets" / "commands"
+        if not commands_dir.exists():
+            logging.debug(f"Commands directory does not exist for plugin '{plugin.name}':{commands_dir}")
+            return []
+
+        logging.info(f"Scanning commands directory for plugin '{plugin.name}': {commands_dir}")
+        command_snippets = []
+        for file in commands_dir.iterdir():
+            if file.is_file() and file.suffix.lower() in ['.yaml', '.yml']:
+                try:
+                    logging.info(f"Loading command snippet from {file}")
+                    with open(file, 'r', encoding='utf-8') as f:
+                        data = yaml.safe_load(f)
+
+                        # Validate required fields
+                        if not isinstance(data, dict):
+                            logging.warning(f"Invalid data type in {file}: {type(data)}")
+                            continue
+
+                        name = data.get('name')
+                        command = data.get('command')
+
+                        # Skip if required fields are missing
+                        if not name or not command:
+                            logging.warning(f"Invalid command snippet {file}: missing name or command")
+                            continue
+
+                        description = data.get('description', '')
+
+                        snippet = {
+                            'name': name,
+                            'description': description,
+                            'command': command,
+                            'file_path': str(file)
+                        }
+                        command_snippets.append(snippet)
+                        logging.info(f"Loaded command snippet: {name}")
+                except Exception as e:
+                    logging.error(f"Failed to load command snippet from {file}: {e}")
+                    continue
+
+        logging.info(f"Found {len(command_snippets)} command snippets for plugin '{plugin.name}'")
+        return sorted(command_snippets, key=lambda x: x['name'])
+
+    @Slot(str, str)
+    def executeCommand(self, plugin_name: str, command: str):
+        """Execute a command snippet for a plugin."""
+        try:
+            plugin = self._find_plugin_by_name(plugin_name)
+            if not plugin:
+                self.errorOccurred.emit("Plugin Not Found", f"Plugin '{plugin_name}' not found.")
+                logging.error(f"Plugin not found: {plugin_name}")
+                return
+
+            # Substitute macros in the command
+            substituted_command = self._substitute_command_macros(command, plugin)
+
+            logging.info(f"Executing command: {substituted_command}")
+
+            # Execute the command in a new independent session
+            if sys.platform == "win32":
+                # On Windows, use cmd /c to execute in a new session
+                subprocess.Popen(
+                    f'cmd /c "{substituted_command}"',
+                    cwd=str(plugin.path),
+                    creationflags=subprocess.CREATE_NEW_CONSOLE
+                )
+            else:
+                # On Unix-like systems
+                subprocess.Popen(
+                    substituted_command,
+                    cwd=str(plugin.path),
+                    shell=True
+                )
+
+            logging.info(f"Command executed successfully for plugin: {plugin_name}")
+
+        except Exception as e:
+            logging.error(f"Failed to execute command: {e}")
+            self.errorOccurred.emit("Command Execution Failed", f"Could not execute command: {e}")
+
+    # def _substitute_command_macros(self, command: str, plugin: Plugin) -> str:
+    #     """Substitute macros in command string with actual paths."""
+    #     plugin_dir = plugin.path.resolve()
+    #     snippet_dir = plugin_dir / "snippets"
+    #     command_dir = snippet_dir / "commands"
+
+    #     # Macro converter functions
+    #     macro_converters = {
+    #         "{$PLUGIN_DIR}": lambda: str(plugin_dir),
+    #         "{$SNIPPET_DIR}": lambda: str(snippet_dir),
+    #         "{$COMMAND_DIR}": lambda: str(command_dir),
+    #         "{$CURR_DIR}": lambda: str(command_dir),  # Alias for compatibility
+    #         "{$CURRENT_DIR}": lambda: str(command_dir),  # Alias for compatibility
+    #     }
+
+    #     # Substitute all macros
+    #     result = command
+    #     for macro, converter in macro_converters.items():
+    #         if macro in result:
+    #             result = result.replace(macro, converter())
+
+    #     return result
+
+    def _substitute_command_macros(self, command: str, plugin: Plugin) -> str:
+        """Substitute macros in command string with actual paths and environment variables."""
+        # Handle path macros
+        plugin_dir = plugin.path.resolve()
+        snippet_dir = plugin_dir / "snippets"
+        command_dir = snippet_dir / "commands"
+    
+        # Use standard ${MACRO_NAME} format
+        macro_converters = {
+            "${PLUGIN_DIR}": str(plugin_dir),
+            "${SNIPPET_DIR}": str(snippet_dir),
+            "${COMMAND_DIR}": str(command_dir),
+            "${CURR_DIR}": str(command_dir),  # Alias for compatibility
+            "${CURRENT_DIR}": str(command_dir),  # Alias for compatibility
+        }
+    
+        result = command
+        for macro, value in macro_converters.items():
+            result = result.replace(macro, value)
+    
+        # Handle environment variable macros ${ENV:VAR_NAME}
+        env_macro_pattern = r'\$\{ENV:([^\}]+)\}'
+        for match in re.finditer(env_macro_pattern, result):
+            variable_name = match.group(1)
+            env_value = os.environ.get(variable_name, '')
+            result = result.replace(match.group(0), env_value)
+    
+        return result
