@@ -121,6 +121,7 @@ The application will use these proxy settings for UV package installations.
 - UV respects the standard `HTTP_PROXY` and `HTTPS_PROXY` environment variables during dependency installation
 - To disable proxy for specific operations in your plugin, set:
   ```python
+  import os
   os.environ["HTTP_PROXY"] = ""
   os.environ["HTTPS_PROXY"] = ""
   ```
@@ -176,7 +177,21 @@ version = "1.0.0"                   # Required: Version
 description = "Your plugin description"  # Required: Description
 ```
 
-### Step 4: Add Optional Metadata (Tags) 🏷️
+### Step 4: Set a User-Friendly Alias (Optional) 💬
+
+The `name` in `pyproject.toml` must follow strict packaging rules (e.g., using hyphens, no special characters). To display a more readable or creative name in the UI, you can add an `alias`.
+
+If an `alias` is provided, it will be used throughout the application's UI. If not, the `name` will be used as a fallback.
+
+```toml
+[project]
+name = "my-super-cool-plugin"
+version = "1.0.0"
+description = "A plugin with a simple name."
+alias = "My Super Cool Plugin ✨" # Optional: A user-friendly display name
+```
+
+### Step 5: Add Optional Metadata (Tags) 🏷️
 
 Add optional tags to categorize your plugin in the `[project]` section:
 
@@ -191,7 +206,7 @@ tags = ["utility", "automation", "example"]  # Optional: Category tags
 **Available Options:**
 - **tags**: Array of strings to categorize your plugin (e.g., "utility", "data-processing", "automation")
 
-### Step 5: Create Plugin Manuals (Optional) 📖
+### Step 6: Create Plugin Manuals (Optional) 📖
 
 To add documentation accessible via the "?" button:
 
@@ -216,6 +231,7 @@ To add documentation accessible via the "?" button:
 ```toml
 [project]
 name = "my-awesome-plugin"
+alias = "My Awesome Plugin"
 version = "1.0.0"
 description = "An awesome plugin for Act-AIO"
 requires-python = ">=3.13"
