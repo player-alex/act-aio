@@ -541,6 +541,225 @@ ApplicationWindow {
                     }
                 }
             }
+
+            Rectangle {
+                width: 100
+                height: 30
+                color: aboutMouseArea.containsMouse ? window.blue : "transparent"
+                radius: 4
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "About"
+                    font.family: "Roboto"
+                    font.pointSize: 10
+                    color: aboutMouseArea.containsMouse ? window.base : window.text
+                }
+
+                MouseArea {
+                    id: aboutMouseArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    onClicked: {
+                        menuDropdown.visible = false
+                        aboutDialog.open()
+                    }
+                }
+            }
+        }
+    }
+
+    Rectangle {
+        id: aboutDialog
+        anchors.fill: parent
+        color: "#80000000"
+        visible: false
+        z: 2000
+
+        property string repositoryUrl: ""
+        property var dependencies: []
+        property string licenseText: ""
+
+        function open() {
+            var info = pluginManager.getSystemInfo()
+            repositoryUrl = info.repository
+            dependencies = info.dependencies
+            licenseText = info.license_text
+            visible = true
+        }
+
+        function close() {
+            visible = false
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            onClicked: aboutDialog.close()
+
+            hoverEnabled: true
+            onPressed: function(mouse) { mouse.accepted = true }
+            onReleased: function(mouse) { mouse.accepted = true }
+            onPositionChanged: function(mouse) { mouse.accepted = true }
+            onWheel: function(wheel) { wheel.accepted = true }
+        }
+
+        Rectangle {
+            width: 550
+            height: 500
+            color: window.base
+            radius: 12
+            border.color: window.surface1
+            border.width: 2
+            anchors.centerIn: parent
+
+            MouseArea {
+                anchors.fill: parent
+                onClicked: {}
+                onWheel: function(wheel) { wheel.accepted = true }
+            }
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 20
+                spacing: 15
+
+                // Title
+                RowLayout {
+                    Layout.fillWidth: true
+                    Text {
+                        text: "About Actions All-In-One"
+                        font.family: "Roboto"
+                        font.pointSize: 16
+                        color: window.text
+                        Layout.fillWidth: true
+                    }
+                    Text {
+                        text: "player-alex"
+                        font.family: "Roboto"
+                        font.pointSize: 10
+                        color: window.subtext0
+                    }
+                }
+
+                Rectangle { Layout.fillWidth: true; height: 1; color: window.surface2 }
+
+                // Repository
+                RowLayout {
+                    Text {
+                        text: "Repository:"
+                        font.family: "Roboto"
+                        font.pointSize: 11
+                        font.weight: Font.Bold
+                        color: window.text
+                    }
+                    Text {
+                        text: '<a href="' + aboutDialog.repositoryUrl + '"><font color="' + window.text + '">' + aboutDialog.repositoryUrl + '</font></a>'
+                        font.family: "Roboto"
+                        font.pointSize: 11
+                        textFormat: Text.RichText
+                        onLinkActivated: Qt.openUrlExternally(link)
+                    }
+                }
+
+                // Dependencies
+                Text {
+                    text: "Dependencies"
+                    font.family: "Roboto"
+                    font.pointSize: 12
+                    font.weight: Font.Bold
+                    color: window.text
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 80
+                    color: window.surface0
+                    radius: 4
+
+                    Flickable {
+                        anchors.fill: parent
+                        anchors.margins: 8
+                        contentHeight: depsColumn.height
+                        clip: true
+
+                        Column {
+                            id: depsColumn
+                            spacing: 5
+                            Repeater {
+                                model: aboutDialog.dependencies
+                                delegate: Text {
+                                    text: '<a href="' + modelData.url + '"><font color="' + window.text + '">' + modelData.name + '</font></a>'
+                                    font.family: "Roboto"
+                                    font.pointSize: 10
+                                    textFormat: Text.RichText
+                                    onLinkActivated: Qt.openUrlExternally(link)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // License
+                Text {
+                    text: "License"
+                    font.family: "Roboto"
+                    font.pointSize: 12
+                    font.weight: Font.Bold
+                    color: window.text
+                }
+
+                ScrollView {
+                    id: licenseScrollView
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    clip: true
+                    background: Rectangle { color: window.surface0; radius: 4 }
+
+                    Text {
+                        width: parent.width
+                        height: implicitHeight
+                        text: aboutDialog.licenseText
+                        wrapMode: Text.NoWrap
+                        font.family: "Roboto"
+                        font.pointSize: 9
+                        color: window.subtext0
+                        // 텍스트 주변에 약간의 여백 추가
+                        padding: 10
+                    }
+                }
+
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    Item { Layout.fillWidth: true }
+                    Rectangle {
+                        width: 100
+                        height: 35
+                        color: aboutCloseMouseArea.containsMouse ? window.surface1 : window.surface0
+                        radius: 4
+                        border.color: window.overlay0
+                        border.width: 1
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "Close"
+                            font.family: "Roboto"
+                            font.pointSize: 10
+                            color: window.text
+                        }
+
+                        MouseArea {
+                            id: aboutCloseMouseArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onClicked: aboutDialog.close()
+                        }
+                    }
+                }
+
+
+
+            }
         }
     }
 

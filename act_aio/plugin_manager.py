@@ -100,6 +100,45 @@ class PluginManager(QObject):
         self._load_settings()
         self.scan_plugins()
 
+    @Slot(result="QVariant")
+    def getSystemInfo(self):
+        """Get system information like repository, dependencies, and license."""
+        info = {
+            "repository": "https://github.com/player-alex/act-aio",
+            "dependencies": [],
+            "license_text": "LICENSE file not found."
+        }
+
+        # Read dependencies from pyproject.toml
+        try:
+            pyproject_file = Path("./pyproject.toml")
+            if pyproject_file.exists():
+                with open(pyproject_file, "rb") as f:
+                    data = tomllib.load(f)
+
+                deps = data.get("project", {}).get("dependencies", [])
+                for dep in deps:
+                    # Extract package name from version specifier (e.g., "PySide6>=6.0")
+                    match = re.match(r"^[a-zA-Z0-9_-]+", dep)
+                    if match:
+                        name = match.group(0)
+                        info["dependencies"].append({
+                            "name": name,
+                            "url": f"https://pypi.org/project/{name}/"
+                        })
+        except Exception as e:
+            logging.error(f"Failed to read dependencies from pyproject.toml: {e}")
+
+        # Read license file
+        try:
+            license_file = Path("./LICENSE")
+            if license_file.exists():
+                info["license_text"] = license_file.read_text(encoding="utf-8")
+        except Exception as e:
+            logging.error(f"Failed to read LICENSE file: {e}")
+
+        return info
+
     def set_session_id(self, session_id: str):
         """Set the current session ID for tracking."""
         self._session_id = session_id
