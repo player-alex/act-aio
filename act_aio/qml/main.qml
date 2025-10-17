@@ -10,7 +10,7 @@ ApplicationWindow {
     width: Math.max(600, Screen.width * 0.4)
     height: Math.max(700, Screen.height * 0.75)
     visible: true
-    title: "E&A Automation"
+    title: "Actions All-In-One"
 
     Component.onCompleted: {
         // Center the window on screen
@@ -126,7 +126,7 @@ ApplicationWindow {
             // Title (center)
             Text {
                 Layout.fillWidth: true
-                text: "E&A Automation"
+                text: "Actions All-In-One"
                 font.family: "Roboto"
                 font.pointSize: 18
                 font.weight: Font.Bold
