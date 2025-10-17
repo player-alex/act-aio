@@ -15,13 +15,14 @@ class PluginListModel(QAbstractListModel):
 
     # Define roles for QML access
     NameRole = Qt.UserRole + 1
-    DescriptionRole = Qt.UserRole + 2
-    VersionRole = Qt.UserRole + 3
-    PathRole = Qt.UserRole + 4
-    ExecutableRole = Qt.UserRole + 5
-    ManualsRole = Qt.UserRole + 6
-    TagsRole = Qt.UserRole + 7
-    CommandsRole = Qt.UserRole + 8
+    DisplayNameRole = Qt.UserRole + 2
+    DescriptionRole = Qt.UserRole + 3
+    VersionRole = Qt.UserRole + 4
+    PathRole = Qt.UserRole + 5
+    ExecutableRole = Qt.UserRole + 6
+    ManualsRole = Qt.UserRole + 7
+    TagsRole = Qt.UserRole + 8
+    CommandsRole = Qt.UserRole + 9
 
     # Signals
     pluginManagerChanged = Signal()
@@ -119,6 +120,7 @@ class PluginListModel(QAbstractListModel):
         """Define role names for QML access."""
         return {
             self.NameRole: b"name",
+            self.DisplayNameRole: b"displayName",
             self.DescriptionRole: b"description",
             self.VersionRole: b"version",
             self.PathRole: b"path",
@@ -142,7 +144,9 @@ class PluginListModel(QAbstractListModel):
 
         plugin = self._filtered_plugins[index.row()]
 
-        if role == self.NameRole:
+        if role == self.DisplayNameRole:
+            return plugin.get("alias") or plugin.get("name", "")
+        elif role == self.NameRole:
             return plugin.get("name", "")
         elif role == self.DescriptionRole:
             return plugin.get("description", "")

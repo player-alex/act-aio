@@ -32,6 +32,7 @@ class Plugin:
     def __init__(self, path: Path, metadata: Dict[str, Any]):
         self.path = path
         self.name = metadata.get("name", "Unknown")
+        self.alias = metadata.get("alias")
         self.description = metadata.get("description", "No description")
         self.version = metadata.get("version", "0.0.0")
 
@@ -209,6 +210,7 @@ class PluginManager(QObject):
             logging.info(f"plugins() property - Plugin '{plugin.name}' commands: {commands}")
             plugin_dict = {
                 "name": plugin.name,
+                "alias": plugin.alias,
                 "description": plugin.description,
                 "version": plugin.version,
                 "path": str(plugin.path),
@@ -278,7 +280,7 @@ class PluginManager(QObject):
             if not plugin_venv_dir.exists():
                 # Setup environment in background thread
                 self._pending_plugin = plugin
-                self.setupStarted.emit(plugin_name)
+                self.setupStarted.emit(plugin.alias or plugin.name)
                 self._setup_worker = PluginSetupWorker(plugin, self)
                 self._setup_worker.finished.connect(self._on_setup_finished)
                 self._setup_worker.start()

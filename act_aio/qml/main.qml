@@ -324,7 +324,7 @@ ApplicationWindow {
 
                 delegate: PluginListItem {
                     width: pluginListView.width - vbar.width
-                    pluginName: model.name
+                    pluginName: model.displayName
                     pluginDescription: model.description
                     pluginVersion: model.version
                     isExecutable: model.executable
