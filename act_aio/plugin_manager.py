@@ -32,7 +32,7 @@ class Plugin:
     def __init__(self, path: Path, metadata: Dict[str, Any]):
         self.path = path
         self.name = metadata.get("name", "Unknown")
-        self.alias = metadata.get("alias")
+        self.alias = metadata.get("alias", "")
         self.description = metadata.get("description", "No description")
         self.version = metadata.get("version", "0.0.0")
 
@@ -729,8 +729,8 @@ class PluginManager(QObject):
             logging.error(f"Error importing plugin: {e}")
             self._show_error("Import failed", f"Failed to import plugin: {e}")
 
-    @Slot(str)
-    def exportPlugin(self, plugin_path: str):
+    @Slot(str, str)
+    def exportPlugin(self, plugin_display_name: str, plugin_path: str):
         """Export a plugin to a zip file."""
         try:
             if not plugin_path:
@@ -742,6 +742,7 @@ class PluginManager(QObject):
                 self._show_error("Plugin not found", f"Plugin directory '{plugin_path}' not found.")
                 return
     
+
             # Use the directory name for the zip file name
             plugin_name = plugin_dir.name
     
@@ -772,8 +773,8 @@ class PluginManager(QObject):
                             rel_path = file.relative_to(plugin_dir.parent)
                             zip_ref.write(file, rel_path)
     
-                logging.info(f"Plugin '{plugin_name}' exported to {file_path}")
-                self._show_info("Export successful", f"Plugin '{plugin_name}' has been exported to:\\n{file_path}")
+                logging.info(f"Plugin '{plugin_display_name}' exported to {file_path}")
+                self._show_info("Export successful", f"Plugin '{plugin_display_name}' has been exported to {file_path}")
     
             except Exception as e:
                 self._show_error("Export failed", f"Failed to create zip file: {e}")

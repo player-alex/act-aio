@@ -7,5 +7,17 @@
 
     <qresource prefix="/qml/components">
         <file alias="CustomScrollBar.qml">qml/components/CustomScrollBar.qml</file>
+        <file alias="MultiLangText.qml">qml/components/MultiLangText.qml</file>
+    </qresource>
+
+    <qresource prefix="/qml/dialogs">
+        <file alias="InfoDialog.qml">qml/dialogs/InfoDialog.qml</file>
+        <file alias="ErrorDialog.qml">qml/dialogs/ErrorDialog.qml</file>
+        <file alias="ConfirmationDialog.qml">qml/dialogs/ConfirmationDialog.qml</file>
+        <file alias="SetupDialog.qml">qml/dialogs/SetupDialog.qml</file>
+        <file alias="CommandDialog.qml">qml/dialogs/CommandDialog.qml</file>
+        <file alias="ManualDialog.qml">qml/dialogs/ManualDialog.qml</file>
+        <file alias="AboutDialog.qml">qml/dialogs/AboutDialog.qml</file>
+        <file alias="SettingsDialog.qml">qml/dialogs/SettingsDialog.qml</file>
     </qresource>
 </RCC>

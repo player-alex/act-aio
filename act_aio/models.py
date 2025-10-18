@@ -107,6 +107,17 @@ class PluginListModel(QAbstractListModel):
         return ""
     
     @Property(str, notify=selectedIndexChanged)
+    def selectedPluginDisplayName(self) -> str:
+        """Get the alias of the currently selected plugin (falls back to name if alias is not set)."""
+        if not self.hasSelection:
+            return ""
+
+        if 0 <= self._selected_index < len(self._filtered_plugins):
+            plugin = self._filtered_plugins[self._selected_index]
+            return plugin.get("alias") or plugin.get("name", "")
+        return ""
+
+    @Property(str, notify=selectedIndexChanged)
     def selectedPluginPath(self) -> str:
         """Get the path of the currently selected plugin."""
         if not self.hasSelection:
@@ -194,6 +205,7 @@ class PluginListModel(QAbstractListModel):
             self._filtered_plugins = [
                 plugin for plugin in self._plugin_manager.plugins
                 if search_lower in plugin.get("name", "").lower()
+                or search_lower in plugin.get("alias", "").lower()
                 or search_lower in plugin.get("description", "").lower()
                 or any(search_lower in tag.lower() for tag in plugin.get("tags", []))
             ]

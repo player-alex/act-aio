@@ -11,7 +11,7 @@ from datetime import datetime
 from pathlib import Path
 from PySide6.QtWidgets import QApplication
 from PySide6.QtQml import qmlRegisterType, QQmlApplicationEngine
-from PySide6.QtCore import QUrl
+from PySide6.QtCore import Qt, QUrl
 from PySide6.QtGui import QFontDatabase
 from PySide6.QtQuickControls2 import QQuickStyle
 import posthog
@@ -19,6 +19,7 @@ import posthog
 from . import qml_qrc
 from .plugin_manager import PluginManager
 from .models import PluginListModel
+from .text_formatter import TextFormatter
 from .tracking import tracking_context
 
 def resource_path(relative_path):
@@ -241,6 +242,10 @@ def main():
     # Load fonts
     load_fonts()
 
+    # Set global aliasing
+    app.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+    app.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
+
     # Register QML types
     qmlRegisterType(PluginListModel, "ActAio", 1, 0, "PluginListModel")
     qmlRegisterType(PluginManager, "ActAio", 1, 0, "PluginManager")
@@ -252,6 +257,10 @@ def main():
 
     # Create QML engine
     engine = QQmlApplicationEngine()
+
+    # Create TextFormatter instance and export to QML
+    text_formatter = TextFormatter()  # Enable debug mode
+    engine.rootContext().setContextProperty("textFormatter", text_formatter)
 
     # Set up the QML source
     # qml_file = Path(__file__).parent / "qml" / "main.qml"

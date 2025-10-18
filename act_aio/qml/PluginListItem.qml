@@ -1,6 +1,7 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import "components"
 
 Rectangle {
     id: root
@@ -74,19 +75,19 @@ Rectangle {
             Layout.fillWidth: true
             spacing: 8
 
-            Text {
-                text: root.pluginName || "Unknown Plugin"
-                font.family: "Roboto"
+            MultiLangText {
+                rawText: root.pluginName || "Unknown Plugin"
                 font.pointSize: 14
                 font.weight: Font.Bold
                 color: root.text
                 Layout.fillWidth: true
                 elide: Text.ElideRight
+                wrapMode: Text.NoWrap
+                maxLines: 1
             }
 
-            Text {
-                text: root.pluginDescription || "No description available"
-                font.family: "Roboto"
+            MultiLangText {
+                rawText: root.pluginDescription || "No description available"
                 font.pointSize: 11
                 color: root.subtext0
                 Layout.fillWidth: true
@@ -96,9 +97,8 @@ Rectangle {
                 elide: Text.ElideRight
             }
 
-            Text {
-                text: root.tags && root.tags.length > 0 ? root.tags.join(", ") : ""
-                font.family: "Roboto"
+            MultiLangText {
+                rawText: root.tags && root.tags.length > 0 ? root.tags.join(", ") : ""
                 font.pointSize: 9
                 color: root.blue
                 Layout.fillWidth: true
