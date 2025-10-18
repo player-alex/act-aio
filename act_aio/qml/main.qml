@@ -11,7 +11,7 @@ ApplicationWindow {
     width: Math.max(600, Screen.width * 0.4)
     height: Math.max(700, Screen.height * 0.75)
     visible: true
-    title: "Actions All-In-One"
+    title: "E&A Automation"
 
     Component.onCompleted: {
         // Center the window on screen
@@ -127,7 +127,7 @@ ApplicationWindow {
             // Title (center)
             MultiLangText {
                 Layout.fillWidth: true
-                rawText: "Actions All-In-One"
+                rawText: "E&A Automation"
                 font.pointSize: 18
                 font.weight: Font.Bold
                 color: window.text
@@ -490,28 +490,112 @@ ApplicationWindow {
             anchors.centerIn: parent
             spacing: 8
 
-            // Import Button
+            // Import Button with Submenu
             Rectangle {
                 width: 100
                 height: 30
-                color: importMouseArea.containsMouse ? window.blue : "transparent"
+                color: importMouseArea.containsMouse || importSubmenu.visible ? window.blue : "transparent"
                 radius: 4
 
                 Text {
                     anchors.centerIn: parent
-                    text: "Import"
+                    text: "Import ›"
                     font.family: "Roboto"
                     font.pointSize: 10
-                    color: importMouseArea.containsMouse ? window.base : window.text
+                    color: (importMouseArea.containsMouse || importSubmenu.visible) ? window.base : window.text
                 }
 
                 MouseArea {
                     id: importMouseArea
                     anchors.fill: parent
                     hoverEnabled: true
-                    onClicked: {
-                        menuDropdown.visible = false
-                        pluginManager.importPlugin()
+                    onEntered: {
+                        importSubmenu.visible = true
+                    }
+                }
+
+                // Import Submenu
+                Rectangle {
+                    id: importSubmenu
+                    width: 120
+                    height: importSubmenuColumn.height + 16
+                    color: window.surface1
+                    radius: 8
+                    border.color: window.overlay0
+                    border.width: 1
+                    visible: false
+                    x: parent.width + 5
+                    y: 0
+                    z: 2000
+
+                    MouseArea {
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        onExited: {
+                            if (!importFromDiskMouseArea.containsMouse && !importFromUrlMouseArea.containsMouse) {
+                                importSubmenu.visible = false
+                            }
+                        }
+                    }
+
+                    Column {
+                        id: importSubmenuColumn
+                        anchors.centerIn: parent
+                        spacing: 8
+
+                        // Import from Disk
+                        Rectangle {
+                            width: 110
+                            height: 30
+                            color: importFromDiskMouseArea.containsMouse ? window.blue : "transparent"
+                            radius: 4
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "from Disk"
+                                font.family: "Roboto"
+                                font.pointSize: 10
+                                color: importFromDiskMouseArea.containsMouse ? window.base : window.text
+                            }
+
+                            MouseArea {
+                                id: importFromDiskMouseArea
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                onClicked: {
+                                    importSubmenu.visible = false
+                                    menuDropdown.visible = false
+                                    pluginManager.importPlugin()
+                                }
+                            }
+                        }
+
+                        // Import from URL
+                        Rectangle {
+                            width: 110
+                            height: 30
+                            color: importFromUrlMouseArea.containsMouse ? window.blue : "transparent"
+                            radius: 4
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "from URL"
+                                font.family: "Roboto"
+                                font.pointSize: 10
+                                color: importFromUrlMouseArea.containsMouse ? window.base : window.text
+                            }
+
+                            MouseArea {
+                                id: importFromUrlMouseArea
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                onClicked: {
+                                    importSubmenu.visible = false
+                                    menuDropdown.visible = false
+                                    urlInputDialog.show()
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -608,6 +692,11 @@ ApplicationWindow {
         applicationWindow: window
     }
 
+    UrlInputDialog {
+        id: urlInputDialog
+        applicationWindow: window
+        pluginManager: pluginManager
+    }
 
     ConfirmationDialog {
         id: confirmationDialog

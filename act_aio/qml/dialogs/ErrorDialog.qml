@@ -121,7 +121,7 @@ Dialog {
                     id: errorDialogMessageText
                     width: parent.width
                     height: implicitHeight
-                    text: errorDialog.errorMessage
+                    rawText: errorDialog.errorMessage
                     font.pointSize: 11
                     color: applicationWindow.text
                     wrapMode: Text.Wrap
