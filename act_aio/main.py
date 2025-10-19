@@ -42,7 +42,7 @@ def resource_path(relative_path):
 def load_app_title():
     """Load application title from pyproject.toml."""
     try:
-        pyproject_path = Path(__file__).parent.parent / "pyproject.toml"
+        pyproject_path = Path("./pyproject.toml")
         with open(pyproject_path, 'rb') as f:
             pyproject_data = tomllib.load(f)
 
@@ -60,7 +60,7 @@ def load_app_title():
 def load_posthog_config():
     """Load PostHog configuration from credentials file."""
     try:
-        credentials_path = Path(__file__).parent.parent / "credentials" / "posthog.json"
+        credentials_path = Path("./credentials/posthog.json")
         with open(credentials_path, 'r') as f:
             config = json.load(f)
         return config.get('key')

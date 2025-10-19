@@ -1,4 +1,5 @@
 {
+  "proxy": "",
   "environment_settings": {
     "HTTPS_PROXY": true,
     "HTTP_PROXY": true,

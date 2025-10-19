@@ -235,6 +235,7 @@ class PluginImportWorker(QThread):
             # 8. Emit the finished signal.
             # If successful, the responsibility to clean up main_temp_dir is passed to the main thread.
             self.finished.emit(success, error_message, import_data)
+            return
 
         except asyncio.CancelledError:
             if main_temp_dir and Path(main_temp_dir).exists():
@@ -251,9 +252,7 @@ class PluginImportWorker(QThread):
             success = False
             self.finished.emit(False, error_message, None)
 
-        # 8. Emit the finished signal.
-        # If successful, the responsibility to clean up main_temp_dir is passed to the main thread.
-        self.finished.emit(success, error_message, import_data)
+        self.finished.emit(False, error_message, None)
 
 class PluginManager(QObject):
     """Manages plugin discovery and execution."""
@@ -900,11 +899,9 @@ class PluginManager(QObject):
 
         if not success:
             self._show_error("Import Failed", error_message)
-            # self._import_worker = None
             return
 
         if not import_data:
-            # self._import_worker = None
             return
 
         # If confirmation is needed, store data and ask user.

@@ -2,7 +2,7 @@
 name = "act-aio"
 version = "0.1.0"
 description = "Actions All-In-One - Python Plugin Launcher"
-title = "Actions All-In-One"
+title = "S-Pro"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
