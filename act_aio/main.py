@@ -16,6 +16,12 @@ from PySide6.QtGui import QFontDatabase
 from PySide6.QtQuickControls2 import QQuickStyle
 import posthog
 
+# Import tomllib for Python 3.11+ or tomli for older versions
+try:
+    import tomllib
+except ImportError:
+    import tomli as tomllib
+
 from . import qml_qrc
 from .plugin_manager import PluginManager
 from .models import PluginListModel
@@ -31,6 +37,25 @@ def resource_path(relative_path):
         # Development mode
         base_path = Path(__file__).parent.parent
     return base_path / relative_path
+
+
+def load_app_title():
+    """Load application title from pyproject.toml."""
+    try:
+        pyproject_path = Path(__file__).parent.parent / "pyproject.toml"
+        with open(pyproject_path, 'rb') as f:
+            pyproject_data = tomllib.load(f)
+
+        # Try to get title from [project] section, fallback to default
+        title = pyproject_data.get('project', {}).get('title', 'Actions All-In-One')
+        # If title exists but is empty string, use default
+        if not title:
+            title = 'Actions All-In-One'
+        return title
+    except Exception as e:
+        logging.warning(f"Failed to load app title from pyproject.toml: {e}")
+        return 'Actions All-In-One'
+
 
 def load_posthog_config():
     """Load PostHog configuration from credentials file."""
@@ -257,6 +282,10 @@ def main():
 
     # Create QML engine
     engine = QQmlApplicationEngine()
+
+    # Load app title from pyproject.toml and export to QML
+    app_title = load_app_title()
+    engine.rootContext().setContextProperty("appTitle", app_title)
 
     # Create TextFormatter instance and export to QML
     text_formatter = TextFormatter()  # Enable debug mode

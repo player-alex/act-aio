@@ -11,7 +11,7 @@ ApplicationWindow {
     width: Math.max(600, Screen.width * 0.4)
     height: Math.max(700, Screen.height * 0.75)
     visible: true
-    title: "E&A Automation"
+    title: appTitle
 
     Component.onCompleted: {
         // Center the window on screen
@@ -127,7 +127,7 @@ ApplicationWindow {
             // Title (center)
             MultiLangText {
                 Layout.fillWidth: true
-                rawText: "E&A Automation"
+                rawText: appTitle
                 font.pointSize: 18
                 font.weight: Font.Bold
                 color: window.text

@@ -76,6 +76,305 @@ class PluginSetupWorker(QThread):
             self.finished.emit(False, str(e))
 
 
+class PluginImportWorker(QThread):
+    """Worker thread for importing plugin from URL."""
+
+    finished = Signal(bool, str, object)  # success, error_message, import_data (source_dir, target_dir, plugin_name)
+    progress = Signal(int, str)  # percentage (0-100), status_message
+
+    def __init__(self, url, plugins_dir, parent=None):
+        super().__init__(parent)
+        self.url = url
+        self.plugins_dir = plugins_dir
+        self.temp_zip_path = None
+
+    def run(self):
+        """Run the plugin import in a separate thread."""
+        success = False
+        error_message = ""
+        import_data = None
+    
+        try:
+            self.progress.emit(0, "Starting download...")
+    
+            # Create temporary file for the downloaded zip
+            temp_zip = tempfile.NamedTemporaryFile(suffix='.zip', delete=False)
+            self.temp_zip_path = Path(temp_zip.name)
+            temp_zip.close()
+    
+            # Download the file with httpx using streaming
+            try:
+                self.progress.emit(5, "Connecting to server...")
+                with httpx.Client(timeout=60.0, follow_redirects=True) as client:
+                    with client.stream('GET', self.url) as response:
+                        response.raise_for_status()
+                        total_size = int(response.headers.get('content-length', 0))
+                        downloaded_size = 0
+                        chunk_size = 8192
+    
+                        with open(self.temp_zip_path, 'wb') as f:
+                            for chunk in response.iter_bytes(chunk_size=chunk_size):
+                                if chunk:
+                                    f.write(chunk)
+                                    downloaded_size += len(chunk)
+                                    if total_size > 0:
+                                        percentage = 5 + int((downloaded_size / total_size) * 90)
+                                        self.progress.emit(percentage, f"Downloading... {downloaded_size // 1024} KB / {total_size // 1024} KB")
+                                    else:
+                                        self.progress.emit(50, f"Downloading... {downloaded_size // 1024} KB")
+                        logging.info(f"Downloaded {downloaded_size} bytes to {self.temp_zip_path}")
+    
+            except httpx.HTTPStatusError as e:
+                error_message = f"HTTP error {e.response.status_code}: {e.response.reason_phrase}\n\nURL: {self.url}"
+                raise  # Raise to be caught by the outer exception handler
+            except httpx.ConnectError as e:
+                error_message = f"Could not connect to the server.\n\nPlease check:\n- Your internet connection\n- The URL is correct\n- The server is accessible\n\nError: {str(e)}"
+                raise
+            except httpx.TimeoutException as e:
+                error_message = f"The download took too long (>60 seconds).\n\nPlease check:\n- Your internet connection\n- The file size\n- Try again later"
+                raise
+            except httpx.TooManyRedirects as e:
+                error_message = f"The URL redirected too many times.\n\nPlease check the URL and try again."
+                raise
+            except httpx.SSLError as e:
+                error_message = f"SSL certificate verification failed.\n\nThis could mean:\n- The server's SSL certificate is invalid\n- The connection is not secure\n\nError: {str(e)}"
+                raise
+            except Exception as e:
+                error_message = f"An unexpected error occurred while downloading.\n\nError: {str(e)}"
+                raise
+    
+            # Verify it's a valid zip file
+            self.progress.emit(95, "Verifying download...")
+            if not zipfile.is_zipfile(self.temp_zip_path):
+                error_message = f"The downloaded file is not a valid zip file.\n\nPlease check the URL and try again."
+                raise Exception(error_message)
+    
+            logging.info(f"Successfully downloaded and verified zip file")
+    
+            # Extract and process the plugin
+            self.progress.emit(97, "Extracting plugin...")
+            with tempfile.TemporaryDirectory() as temp_dir:
+                temp_path = Path(temp_dir)
+    
+                try:
+                    with zipfile.ZipFile(self.temp_zip_path, 'r') as zip_ref:
+                        zip_ref.extractall(temp_path)
+                except Exception as e:
+                    error_message = f"Failed to extract zip file: {e}"
+                    raise
+    
+                plugin_dirs = []
+                for item in temp_path.iterdir():
+                    if item.is_dir() and ((item / "pyproject.toml").exists() or (item / "main.py").exists()):
+                        plugin_dirs.append(item)
+    
+                if len(plugin_dirs) == 0:
+                    error_message = "No valid plugin found in zip file. Plugin should contain pyproject.toml or main.py."
+                    raise Exception(error_message)
+                elif len(plugin_dirs) > 1:
+                    error_message = "Zip file contains multiple plugins. Please import one plugin at a time."
+                    raise Exception(error_message)
+    
+                source_dir = plugin_dirs[0]
+                plugin_name = source_dir.name
+                target_dir = self.plugins_dir / plugin_name
+    
+                if target_dir.exists():
+                    temp_import_dir = self.plugins_dir / f".temp_import_{plugin_name}"
+                    if temp_import_dir.exists():
+                        shutil.rmtree(temp_import_dir)
+                    shutil.copytree(source_dir, temp_import_dir)
+                    import_data = {
+                        'source_dir': temp_import_dir,
+                        'target_dir': target_dir,
+                        'plugin_name': plugin_name,
+                        'needs_confirmation': True
+                    }
+                    self.progress.emit(100, "Plugin already exists")
+                else:
+                    self.progress.emit(99, "Installing plugin...")
+                    try:
+                        shutil.copytree(source_dir, target_dir)
+                        import_data = {
+                            'source_dir': target_dir,
+                            'target_dir': target_dir,
+                            'plugin_name': plugin_name,
+                            'needs_confirmation': False
+                        }
+                        self.progress.emit(100, "Import completed")
+                    except Exception as e:
+                        error_message = f"Failed to copy plugin: {e}"
+                        raise
+    
+            success = True
+    
+        except Exception as e:
+            if not error_message:
+                error_message = f"Failed to import plugin from URL: {e}"
+            logging.error(f"Error importing plugin from URL: {e}")
+            success = False
+        finally:
+            # Clean up temporary zip file
+            if self.temp_zip_path and self.temp_zip_path.exists():
+                try:
+                    self.temp_zip_path.unlink()
+                    logging.info(f"Cleaned up temporary zip file: {self.temp_zip_path}")
+                except Exception as e:
+                    logging.error(f"Failed to clean up temporary zip file: {e}")
+    
+        # Emit the finished signal only once at the very end
+        self.finished.emit(success, error_message, import_data)
+
+
+    # def run(self):
+    #     """Run the plugin import in a separate thread."""
+    #     try:
+    #         self.progress.emit(0, "Starting download...")
+
+    #         # Create temporary file for the downloaded zip
+    #         temp_zip = tempfile.NamedTemporaryFile(suffix='.zip', delete=False)
+    #         self.temp_zip_path = Path(temp_zip.name)
+    #         temp_zip.close()
+
+    #         # Download the file with httpx using streaming
+    #         try:
+    #             self.progress.emit(5, "Connecting to server...")
+    #             with httpx.Client(timeout=60.0, follow_redirects=True) as client:
+    #                 with client.stream('GET', self.url) as response:
+    #                     response.raise_for_status()
+
+    #                     # Get total file size
+    #                     total_size = int(response.headers.get('content-length', 0))
+
+    #                     # Download with progress tracking
+    #                     downloaded_size = 0
+    #                     chunk_size = 8192
+
+    #                     with open(self.temp_zip_path, 'wb') as f:
+    #                         for chunk in response.iter_bytes(chunk_size=chunk_size):
+    #                             if chunk:
+    #                                 f.write(chunk)
+    #                                 downloaded_size += len(chunk)
+
+    #                                 # Calculate progress (5% to 95%, reserve 95-100% for extraction)
+    #                                 if total_size > 0:
+    #                                     percentage = 5 + int((downloaded_size / total_size) * 90)
+    #                                     self.progress.emit(percentage, f"Downloading... {downloaded_size // 1024} KB / {total_size // 1024} KB")
+    #                                 else:
+    #                                     self.progress.emit(50, f"Downloading... {downloaded_size // 1024} KB")
+
+    #                     logging.info(f"Downloaded {downloaded_size} bytes to {self.temp_zip_path}")
+
+    #         except httpx.HTTPStatusError as e:
+    #             self.finished.emit(False, f"HTTP error {e.response.status_code}: {e.response.reason_phrase}\n\nURL: {self.url}", None)
+    #             return
+    #         except httpx.ConnectError as e:
+    #             self.finished.emit(False, f"Could not connect to the server.\n\nPlease check:\n- Your internet connection\n- The URL is correct\n- The server is accessible\n\nError: {str(e)}", None)
+    #             return
+    #         except httpx.TimeoutException as e:
+    #             self.finished.emit(False, f"The download took too long (>60 seconds).\n\nPlease check:\n- Your internet connection\n- The file size\n- Try again later", None)
+    #             return
+    #         except httpx.TooManyRedirects as e:
+    #             self.finished.emit(False, f"The URL redirected too many times.\n\nPlease check the URL and try again.", None)
+    #             return
+    #         except httpx.SSLError as e:
+    #             self.finished.emit(False, f"SSL certificate verification failed.\n\nThis could mean:\n- The server's SSL certificate is invalid\n- The connection is not secure\n\nError: {str(e)}", None)
+    #             return
+    #         except Exception as e:
+    #             self.finished.emit(False, f"An unexpected error occurred while downloading.\n\nError: {str(e)}", None)
+    #             return
+
+    #         # Verify it's a valid zip file
+    #         self.progress.emit(95, "Verifying download...")
+    #         if not zipfile.is_zipfile(self.temp_zip_path):
+    #             self.finished.emit(False, f"The downloaded file is not a valid zip file.\n\nPlease check the URL and try again.", None)
+    #             return
+
+    #         logging.info(f"Successfully downloaded and verified zip file")
+
+    #         # Extract and process the plugin
+    #         self.progress.emit(97, "Extracting plugin...")
+    #         with tempfile.TemporaryDirectory() as temp_dir:
+    #             temp_path = Path(temp_dir)
+
+    #             # Extract zip file
+    #             try:
+    #                 with zipfile.ZipFile(self.temp_zip_path, 'r') as zip_ref:
+    #                     zip_ref.extractall(temp_path)
+    #             except Exception as e:
+    #                 self.finished.emit(False, f"Failed to extract zip file: {e}", None)
+    #                 return
+
+    #             # Find the plugin directory (should contain pyproject.toml or main.py)
+    #             plugin_dirs = []
+    #             for item in temp_path.iterdir():
+    #                 if item.is_dir():
+    #                     if (item / "pyproject.toml").exists() or (item / "main.py").exists():
+    #                         plugin_dirs.append(item)
+
+    #             if len(plugin_dirs) == 0:
+    #                 self.finished.emit(False, "No valid plugin found in zip file. Plugin should contain pyproject.toml or main.py.", None)
+    #                 return
+    #             elif len(plugin_dirs) > 1:
+    #                 self.finished.emit(False, "Zip file contains multiple plugins. Please import one plugin at a time.", None)
+    #                 return
+
+    #             source_dir = plugin_dirs[0]
+    #             plugin_name = source_dir.name
+
+    #             # Check if plugin already exists
+    #             target_dir = self.plugins_dir / plugin_name
+    #             if target_dir.exists():
+    #                 # Copy to temporary location in plugins directory
+    #                 temp_import_dir = self.plugins_dir / f".temp_import_{plugin_name}"
+
+    #                 # Remove temp import dir if it exists
+    #                 if temp_import_dir.exists():
+    #                     shutil.rmtree(temp_import_dir)
+
+    #                 # Copy to temp location
+    #                 shutil.copytree(source_dir, temp_import_dir)
+
+    #                 # Return import data for confirmation
+    #                 import_data = {
+    #                     'source_dir': temp_import_dir,
+    #                     'target_dir': target_dir,
+    #                     'plugin_name': plugin_name,
+    #                     'needs_confirmation': True
+    #                 }
+    #                 self.progress.emit(100, "Plugin already exists")
+    #                 self.finished.emit(True, "", import_data)
+    #                 return
+
+    #             # Copy plugin to plugins directory
+    #             self.progress.emit(99, "Installing plugin...")
+    #             try:
+    #                 shutil.copytree(source_dir, target_dir)
+    #                 import_data = {
+    #                     'source_dir': target_dir,
+    #                     'target_dir': target_dir,
+    #                     'plugin_name': plugin_name,
+    #                     'needs_confirmation': False
+    #                 }
+    #                 self.progress.emit(100, "Import completed")
+    #                 self.finished.emit(True, "", import_data)
+    #             except Exception as e:
+    #                 self.finished.emit(False, f"Failed to copy plugin: {e}", None)
+    #                 return
+
+    #     except Exception as e:
+    #         logging.error(f"Error importing plugin from URL: {e}")
+    #         self.finished.emit(False, f"Failed to import plugin from URL: {e}", None)
+    #     finally:
+    #         # Clean up temporary zip file
+    #         if self.temp_zip_path and self.temp_zip_path.exists():
+    #             try:
+    #                 self.temp_zip_path.unlink()
+    #                 logging.info(f"Cleaned up temporary zip file: {self.temp_zip_path}")
+    #             except Exception as e:
+    #                 logging.error(f"Failed to clean up temporary zip file: {e}")
+
+
 class PluginManager(QObject):
     """Manages plugin discovery and execution."""
 
@@ -86,6 +385,9 @@ class PluginManager(QObject):
     confirmationRequested = Signal(str, str, str)  # title, message, callback_id
     infoMessageRequested = Signal(str, str)  # title, message
     importSucceeded = Signal()  # import completed successfully
+    importStarted = Signal()  # import from URL started
+    importProgress = Signal(int, str)  # percentage (0-100), status message
+    importFinished = Signal(bool)  # success
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -96,6 +398,7 @@ class PluginManager(QObject):
         self._proxy_url = ""  # Proxy URL for pip commands
         self._settings_file = Path("./settings.json")
         self._setup_worker = None
+        self._import_worker = None  # Worker for importing plugins from URL
         self._pending_plugin = None
         self._env_file = Path(".env")
         self._environment_settings = {}  # Dictionary to track enabled/disabled environment variables
@@ -735,164 +1038,72 @@ class PluginManager(QObject):
     @Slot(str)
     def importPluginFromUrl(self, url: str):
         """Import a plugin from a URL pointing to a zip file."""
-        temp_zip_path = None
-        try:
-            # Validate URL
-            if not url or not url.strip():
-                self._show_error("Invalid URL", "Please enter a valid URL.")
-                return
+        # Validate URL
+        if not url or not url.strip():
+            self._show_error("Invalid URL", "Please enter a valid URL.")
+            return
 
-            url = url.strip()
+        url = url.strip()
 
-            # Basic URL validation
-            if not url.startswith(('http://', 'https://')):
-                self._show_error("Invalid URL", "URL must start with http:// or https://")
-                return
+        # Basic URL validation
+        if not url.startswith(('http://', 'https://')):
+            self._show_error("Invalid URL", "URL must start with http:// or https://")
+            return
 
-            logging.info(f"Downloading plugin from URL: {url}")
+        logging.info(f"Importing plugin from URL: {url}")
 
-            # Create temporary file for the downloaded zip
-            temp_zip = tempfile.NamedTemporaryFile(suffix='.zip', delete=False)
-            temp_zip_path = Path(temp_zip.name)
-            temp_zip.close()
+        # Emit import started signal
+        self.importStarted.emit()
 
-            # Download the file with httpx
-            try:
-                with httpx.Client(timeout=60.0, follow_redirects=True) as client:
-                    response = client.get(url)
-                    response.raise_for_status()
+        # Create worker thread for background download
+        self._import_worker = PluginImportWorker(url, self._plugins_dir)
 
-                    # Check if content type is appropriate
-                    content_type = response.headers.get('content-type', '').lower()
-                    logging.info(f"Downloaded file content-type: {content_type}")
+        # Connect worker signals
+        self._import_worker.progress.connect(self.importProgress.emit)
+        self._import_worker.finished.connect(self._on_import_finished)
 
-                    # Write downloaded content to temp file
-                    temp_zip_path.write_bytes(response.content)
-                    logging.info(f"Downloaded {len(response.content)} bytes to {temp_zip_path}")
+        # Start the worker
+        self._import_worker.start()
 
-            except httpx.HTTPStatusError as e:
-                logging.error(f"HTTP error downloading plugin: {e}")
-                self._show_error(
-                    "Download Failed",
-                    f"HTTP error {e.response.status_code}: {e.response.reason_phrase}\n\nURL: {url}"
-                )
-                return
-            except httpx.ConnectError as e:
-                logging.error(f"Connection error downloading plugin: {e}")
-                self._show_error(
-                    "Connection Failed",
-                    f"Could not connect to the server.\n\nPlease check:\n- Your internet connection\n- The URL is correct\n- The server is accessible\n\nError: {str(e)}"
-                )
-                return
-            except httpx.TimeoutException as e:
-                logging.error(f"Timeout downloading plugin: {e}")
-                self._show_error(
-                    "Download Timeout",
-                    f"The download took too long (>60 seconds).\n\nPlease check:\n- Your internet connection\n- The file size\n- Try again later"
-                )
-                return
-            except httpx.TooManyRedirects as e:
-                logging.error(f"Too many redirects: {e}")
-                self._show_error(
-                    "Too Many Redirects",
-                    f"The URL redirected too many times.\n\nPlease check the URL and try again."
-                )
-                return
-            except httpx.SSLError as e:
-                logging.error(f"SSL error downloading plugin: {e}")
-                self._show_error(
-                    "SSL Certificate Error",
-                    f"SSL certificate verification failed.\n\nThis could mean:\n- The server's SSL certificate is invalid\n- The connection is not secure\n\nError: {str(e)}"
-                )
-                return
-            except Exception as e:
-                logging.error(f"Unexpected error downloading plugin: {e}")
-                self._show_error(
-                    "Download Failed",
-                    f"An unexpected error occurred while downloading.\n\nError: {str(e)}"
-                )
-                return
+    def _on_import_finished(self, success: bool, error_message: str, import_data: dict):
+        """Handle import worker completion."""
+        # Emit import finished signal
+        self.importFinished.emit(success)
 
-            # Verify it's a valid zip file
-            if not zipfile.is_zipfile(temp_zip_path):
-                self._show_error(
-                    "Invalid File",
-                    f"The downloaded file is not a valid zip file.\n\nPlease check the URL and try again."
-                )
-                return
+        if not success:
+            # Show error dialog
+            self._show_error("Import Failed", error_message)
+            self._import_worker = None
+            return
 
-            logging.info(f"Successfully downloaded and verified zip file")
+        # Success case
+        if import_data and import_data.get('needs_confirmation'):
+            # Plugin already exists, ask for confirmation
+            self._pending_import_data = {
+                'source_dir': import_data['source_dir'],
+                'target_dir': import_data['target_dir'],
+                'plugin_name': import_data['plugin_name']
+            }
+            self.confirmationRequested.emit(
+                "Plugin exists",
+                f"Plugin '{import_data['plugin_name']}' already exists. Do you want to overwrite it?",
+                "import_overwrite"
+            )
+        else:
+            # Plugin imported successfully
+            plugin_name = import_data['plugin_name']
+            logging.info(f"Plugin '{plugin_name}' imported successfully")
 
-            # Use the existing import logic with the downloaded file
-            # Create temporary directory for extraction
-            with tempfile.TemporaryDirectory() as temp_dir:
-                temp_path = Path(temp_dir)
+            # Refresh plugin list
+            self.scan_plugins()
 
-                # Extract zip file
-                try:
-                    with zipfile.ZipFile(temp_zip_path, 'r') as zip_ref:
-                        zip_ref.extractall(temp_path)
-                except Exception as e:
-                    self._show_error("Extraction failed", f"Failed to extract zip file: {e}")
-                    return
+            self._show_info("Import successful", f"Plugin '{plugin_name}' has been imported successfully.")
 
-                # Find the plugin directory (should contain pyproject.toml or main.py)
-                plugin_dirs = []
-                for item in temp_path.iterdir():
-                    if item.is_dir():
-                        if (item / "pyproject.toml").exists() or (item / "main.py").exists():
-                            plugin_dirs.append(item)
+            # Emit success signal to close UrlInputDialog
+            self.importSucceeded.emit()
 
-                if len(plugin_dirs) == 0:
-                    self._show_error("Invalid plugin", "No valid plugin found in zip file. Plugin should contain pyproject.toml or main.py.")
-                    return
-                elif len(plugin_dirs) > 1:
-                    self._show_error("Multiple plugins", "Zip file contains multiple plugins. Please import one plugin at a time.")
-                    return
-
-                source_dir = plugin_dirs[0]
-                plugin_name = source_dir.name
-
-                # Check if plugin already exists
-                target_dir = self._plugins_dir / plugin_name
-                if target_dir.exists():
-                    # Copy to temporary location in plugins directory before asking for confirmation
-                    temp_import_dir = self._plugins_dir / f".temp_import_{plugin_name}"
-
-                    # Remove temp import dir if it exists
-                    if temp_import_dir.exists():
-                        shutil.rmtree(temp_import_dir)
-
-                    # Copy to temp location
-                    shutil.copytree(source_dir, temp_import_dir)
-
-                    # Store import data and request confirmation
-                    self._pending_import_data = {
-                        'source_dir': temp_import_dir,
-                        'target_dir': target_dir,
-                        'plugin_name': plugin_name
-                    }
-                    self.confirmationRequested.emit(
-                        "Plugin exists",
-                        f"Plugin '{plugin_name}' already exists. Do you want to overwrite it?",
-                        "import_overwrite"
-                    )
-                    return
-
-                # Copy plugin to plugins directory
-                self._complete_import(source_dir, target_dir, plugin_name)
-
-        except Exception as e:
-            logging.error(f"Error importing plugin from URL: {e}")
-            self._show_error("Import failed", f"Failed to import plugin from URL: {e}")
-        finally:
-            # Clean up temporary zip file
-            if temp_zip_path and temp_zip_path.exists():
-                try:
-                    temp_zip_path.unlink()
-                    logging.info(f"Cleaned up temporary zip file: {temp_zip_path}")
-                except Exception as e:
-                    logging.error(f"Failed to clean up temporary zip file: {e}")
+        # Clean up worker
+        self._import_worker = None
 
     @Slot(str, str)
     def exportPlugin(self, plugin_display_name: str, plugin_path: str):

@@ -6,7 +6,7 @@ import "../components"
 Dialog {
     id: urlInputDialog
     width: 500
-    height: 260
+    height: Math.max(260, implicitHeight)
     anchors.centerIn: parent
     modal: true
     focus: true
@@ -20,9 +20,15 @@ Dialog {
 
     property var applicationWindow
     property var pluginManager
+    property bool isLoading: false
+    property int progressPercent: 0
+    property string progressStatus: ""
 
     function show() {
         urlTextField.text = ""
+        isLoading = false
+        progressPercent = 0
+        progressStatus = ""
         visible = true
         urlTextField.forceActiveFocus()
     }
@@ -31,6 +37,21 @@ Dialog {
         target: pluginManager
         function onImportSucceeded() {
             urlInputDialog.close()
+        }
+        function onImportStarted() {
+            isLoading = true
+            progressPercent = 0
+            progressStatus = "Starting download..."
+        }
+        function onImportProgress(percent, status) {
+            progressPercent = percent
+            progressStatus = status
+        }
+        function onImportFinished(success) {
+            isLoading = false
+            // if (success) {
+            //     urlInputDialog.close()
+            // }
         }
     }
 
@@ -120,14 +141,67 @@ Dialog {
                         bottomPadding: 0
                         leftPadding: 4
                         rightPadding: 4
+                        enabled: !isLoading
                         background: Rectangle {
                             color: "transparent"
                         }
                         onAccepted: {
-                            if (urlTextField.text.trim() !== "") {
+                            if (urlTextField.text.trim() !== "" && !isLoading) {
                                 pluginManager.importPluginFromUrl(urlTextField.text.trim())
                             }
                         }
+                    }
+                }
+
+                // Progress section - only visible when loading
+                ColumnLayout {
+                    spacing: 8
+                    Layout.fillWidth: true
+                    visible: isLoading
+                    Layout.topMargin: 5
+
+                    // Status text
+                    Text {
+                        text: progressStatus
+                        font.family: "Roboto"
+                        font.pointSize: 9
+                        color: applicationWindow.subtext0
+                        Layout.fillWidth: true
+                    }
+
+                    // Progress bar container
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 8
+                        color: applicationWindow.surface0
+                        radius: 4
+                        border.color: applicationWindow.surface1
+                        border.width: 1
+
+                        // Progress bar fill
+                        Rectangle {
+                            width: parent.width * (progressPercent / 100.0)
+                            height: parent.height
+                            color: applicationWindow.blue
+                            radius: 4
+
+                            Behavior on width {
+                                NumberAnimation {
+                                    duration: 100
+                                    easing.type: Easing.InOutQuad
+                                }
+                            }
+                        }
+                    }
+
+                    // Progress percentage text
+                    Text {
+                        text: progressPercent + "%"
+                        font.family: "Roboto"
+                        font.pointSize: 9
+                        font.weight: Font.Bold
+                        color: applicationWindow.blue
+                        Layout.alignment: Qt.AlignRight
                     }
                 }
             }
@@ -163,6 +237,7 @@ Dialog {
                 radius: 4
                 border.color: applicationWindow.overlay0
                 border.width: 1
+                opacity: isLoading ? 0.5 : 1.0
 
                 Text {
                     anchors.centerIn: parent
@@ -176,6 +251,7 @@ Dialog {
                     id: cancelMouseArea
                     anchors.fill: parent
                     hoverEnabled: true
+                    enabled: !isLoading
                     onClicked: {
                         urlInputDialog.close()
                     }
@@ -189,11 +265,11 @@ Dialog {
                 radius: 4
                 border.color: applicationWindow.blue
                 border.width: 1
-                opacity: urlTextField.text.trim() === "" ? 0.5 : 1.0
+                opacity: (urlTextField.text.trim() === "" || isLoading) ? 0.5 : 1.0
 
                 Text {
                     anchors.centerIn: parent
-                    text: "OK"
+                    text: isLoading ? "Loading..." : "OK"
                     font.family: "Roboto"
                     font.pointSize: 10
                     font.weight: Font.Bold
@@ -204,7 +280,7 @@ Dialog {
                     id: okMouseArea
                     anchors.fill: parent
                     hoverEnabled: true
-                    enabled: urlTextField.text.trim() !== ""
+                    enabled: urlTextField.text.trim() !== "" && !isLoading
                     onClicked: {
                         pluginManager.importPluginFromUrl(urlTextField.text.trim())
                     }
