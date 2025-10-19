@@ -95,7 +95,7 @@ class PluginImportWorker(QThread):
         import_data = None
     
         try:
-            self.progress.emit(0, "Starting download...")
+            self.progress.emit(-1, "Starting download...")
     
             # Create temporary file for the downloaded zip
             temp_zip = tempfile.NamedTemporaryFile(suffix='.zip', delete=False)
@@ -104,7 +104,7 @@ class PluginImportWorker(QThread):
     
             # Download the file with httpx using streaming
             try:
-                self.progress.emit(5, "Connecting to server...")
+                self.progress.emit(-1, "Connecting to server...")
                 with httpx.Client(timeout=60.0, follow_redirects=True) as client:
                     with client.stream('GET', self.url) as response:
                         response.raise_for_status()
@@ -118,10 +118,10 @@ class PluginImportWorker(QThread):
                                     f.write(chunk)
                                     downloaded_size += len(chunk)
                                     if total_size > 0:
-                                        percentage = 5 + int((downloaded_size / total_size) * 90)
+                                        percentage = int((downloaded_size / total_size) * 100)
                                         self.progress.emit(percentage, f"Downloading... {downloaded_size // 1024} KB / {total_size // 1024} KB")
                                     else:
-                                        self.progress.emit(50, f"Downloading... {downloaded_size // 1024} KB")
+                                        self.progress.emit(-1, f"Downloading... {downloaded_size // 1024} KB")
                         logging.info(f"Downloaded {downloaded_size} bytes to {self.temp_zip_path}")
     
             except httpx.HTTPStatusError as e:
@@ -144,7 +144,7 @@ class PluginImportWorker(QThread):
                 raise
     
             # Verify it's a valid zip file
-            self.progress.emit(95, "Verifying download...")
+            self.progress.emit(100, "Verifying...")
             if not zipfile.is_zipfile(self.temp_zip_path):
                 error_message = f"The downloaded file is not a valid zip file.\n\nPlease check the URL and try again."
                 raise Exception(error_message)
@@ -152,13 +152,21 @@ class PluginImportWorker(QThread):
             logging.info(f"Successfully downloaded and verified zip file")
     
             # Extract and process the plugin
-            self.progress.emit(97, "Extracting plugin...")
             with tempfile.TemporaryDirectory() as temp_dir:
                 temp_path = Path(temp_dir)
-    
+
                 try:
                     with zipfile.ZipFile(self.temp_zip_path, 'r') as zip_ref:
-                        zip_ref.extractall(temp_path)
+                        file_list = zip_ref.namelist()
+                        total_files = len(file_list)
+
+                        self.progress.emit(0, f"Extracting... 0/{total_files} files")
+
+                        for i, file in enumerate(file_list):
+                            zip_ref.extract(file, temp_path)
+                            # Progress from 0% to 100% during extraction
+                            percentage = int((i + 1) / total_files * 100)
+                            self.progress.emit(percentage, f"Extracting... {i + 1}/{total_files} files")
                 except Exception as e:
                     error_message = f"Failed to extract zip file: {e}"
                     raise

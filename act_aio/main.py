@@ -12,7 +12,7 @@ from pathlib import Path
 from PySide6.QtWidgets import QApplication
 from PySide6.QtQml import qmlRegisterType, QQmlApplicationEngine
 from PySide6.QtCore import Qt, QUrl
-from PySide6.QtGui import QFontDatabase
+from PySide6.QtGui import QFontDatabase, QSurfaceFormat
 from PySide6.QtQuickControls2 import QQuickStyle
 import posthog
 
@@ -259,6 +259,12 @@ def main():
     if posthog_enabled:
         track_script_event('started_act_aio', session_id=session_id, hardware_uuid=hardware_uuid, start_time=start_time)
 
+    # Apply antialiasing
+    fmt = QSurfaceFormat()
+    fmt.setSamples(8)
+    QSurfaceFormat.setDefaultFormat(fmt)
+
+    # Create app instance
     app = QApplication(sys.argv)
 
     # Set Qt Quick Controls style to Basic for customization support

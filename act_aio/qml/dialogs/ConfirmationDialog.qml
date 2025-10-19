@@ -108,11 +108,6 @@ Dialog {
                 }
             }
         }
-    }
-
-    footer: ColumnLayout {
-        spacing: 0
-        Layout.fillWidth: true
 
         Rectangle {
             Layout.fillWidth: true

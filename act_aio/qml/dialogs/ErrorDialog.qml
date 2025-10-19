@@ -129,13 +129,8 @@ Dialog {
                 }
             }
         }
-    }
 
-    footer: ColumnLayout {
-        spacing: 0
-        Layout.fillWidth: true
-
-        Rectangle {
+                Rectangle {
             Layout.fillWidth: true
             height: 1
             color: applicationWindow.surface2

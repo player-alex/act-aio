@@ -31,7 +31,7 @@ requires-dist = [
     { name = "nuitka", specifier = ">=2.8.1" },
     { name = "posthog", specifier = ">=6.7.5" },
     { name = "py7zr", specifier = ">=1.0.0" },
-    { name = "pyside6", specifier = ">=6.8.0" },
+    { name = "pyside6", specifier = "~=6.9.2" },
     { name = "pyyaml", specifier = ">=6.0.0" },
     { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2.0.0" },
 ]
