@@ -127,6 +127,25 @@ The application will use these proxy settings for UV package installations.
   ```
 - Remember to restore the original values if needed after disabling
 
+## ⚙️ Configuration
+
+The main application can be configured via the `pyproject.toml` file in the root directory.
+
+### Application Title
+
+You can customize the application's main window title by setting the `title` property in the `[project]` section of `pyproject.toml`.
+
+**Example:**
+```toml
+[project]
+name = "act-aio"
+version = "0.1.0"
+description = "Actions All-In-One - Python Plugin Launcher"
+title = "My Custom App Title" # This will be the window title
+```
+
+If the `title` property is not set, the application will use a default title.
+
 ## 📁 Project Structure
 
 ```
