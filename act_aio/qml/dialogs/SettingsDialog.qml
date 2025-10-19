@@ -241,9 +241,7 @@ Dialog {
                 }
             }
         }
-    }
 
-    footer: ColumnLayout {
         Rectangle {
             Layout.fillWidth: true
             height: 1
@@ -253,9 +251,8 @@ Dialog {
         RowLayout {
             Layout.fillWidth: true
             spacing: 10
-            Layout.topMargin: 10
-            Layout.bottomMargin: 20
-            Layout.rightMargin: 25
+            Layout.topMargin: 5
+            Layout.bottomMargin: 5
 
             Item {
                 Layout.fillWidth: true
