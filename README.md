@@ -245,6 +245,39 @@ To add documentation accessible via the "?" button:
 
 **Note:** Act-AIO automatically detects **all files** in the `manuals/` directory, regardless of format (`.md`, `.txt`, `.pdf`, `.json`, etc.). You don't need to list them in `pyproject.toml`. The manual files will be accessible via the "?" button in the plugin list.
 
+### Step 7: Custom Execution Command (Optional) ⚙️
+
+By default, Act-AIO launches plugins using `uv run main.py`. However, you can define a custom execution command in `pyproject.toml` using the `exec` field under the `[project]` section.
+
+**Simple Cross-Platform Command:**
+```toml
+[project]
+name = "my-plugin"
+version = "1.0.0"
+exec = "python custom_launcher.py"
+```
+
+**Platform-Specific Commands:**
+```toml
+[project]
+name = "my-plugin"
+version = "1.0.0"
+exec = { win32 = "cmd /c custom.bat", posix = "./custom.sh" }
+```
+
+**Features:**
+- ✨ **Macro Substitution**: Use macros like `${PLUGIN_DIR}`, `${ENV:VAR_NAME}` in your commands
+- 🔄 **Automatic Fallback**: If `exec` is not defined or no platform-specific command is found, defaults to `uv run main.py`
+- 🌐 **Environment Variables**: All configured environment variables are passed to custom commands
+- ⚠️ **Error Handling**: On Windows, the console pauses on errors automatically
+
+**Example with Macros:**
+```toml
+[project]
+name = "my-plugin"
+exec = "python ${PLUGIN_DIR}/scripts/launcher.py --env ${ENV:MY_VAR}"
+```
+
 ### Complete Example 📄
 
 ```toml
@@ -258,6 +291,8 @@ tags = ["utility", "web", "automation"]
 dependencies = [
     "requests>=2.31.0",
 ]
+# Optional: Custom execution command
+exec = "python custom_launcher.py"
 ```
 
 ### Plugin Entry Point ▶️

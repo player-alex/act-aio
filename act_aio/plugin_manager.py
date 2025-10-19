@@ -46,6 +46,9 @@ class Plugin:
         else:
             self.tags = []
 
+        # Parse custom execution command (supports string or dict for platform-specific)
+        self.exec_command = metadata.get("exec", None)
+
         self.main_file = path / "main.py"
 
     @property
@@ -619,26 +622,52 @@ class PluginManager(QObject):
             else:
                 print("No .env variables disabled")
 
-            if sys.platform == "win32":
-                # On Windows, use uv run --active with the plugin's virtual environment
-                # Pause only if error occurred (ERRORLEVEL != 0)
-                cmd_string = f'cmd /c "uv run --active main.py & if %ERRORLEVEL% neq 0 (echo Exit code: %ERRORLEVEL% & pause)"'
-                print(f"Executing command: {cmd_string}")
-                print(f"Working directory: {plugin.path}")
-                subprocess.Popen(
-                    cmd_string,
-                    cwd=str(plugin.path),
-                    env=env,
-                    creationflags=subprocess.CREATE_NEW_CONSOLE
-                )
+            # Check if plugin has custom exec command
+            if plugin.exec_command:
+                # Determine the command based on exec_command type
+                if isinstance(plugin.exec_command, dict):
+                    # Platform-specific commands
+                    custom_cmd = plugin.exec_command.get(sys.platform)
+                    if not custom_cmd:
+                        print(f"Warning: No exec command defined for platform '{sys.platform}', falling back to default")
+                else:
+                    # Simple string command (cross-platform)
+                    custom_cmd = plugin.exec_command
+
+                if custom_cmd:
+                    # Apply macro substitution to custom command
+                    custom_cmd = self._substitute_command_macros(custom_cmd, plugin)
+                    print(f"Using custom exec command: {custom_cmd}")
+
+                    if sys.platform == "win32":
+                        # On Windows, wrap in cmd /c with error handling
+                        cmd_string = f'cmd /c "{custom_cmd} & if %ERRORLEVEL% neq 0 (echo Exit code: %ERRORLEVEL% & pause)"'
+                        print(f"Executing command: {cmd_string}")
+                        print(f"Working directory: {plugin.path}")
+                        subprocess.Popen(
+                            cmd_string,
+                            cwd=str(plugin.path),
+                            env=env,
+                            creationflags=subprocess.CREATE_NEW_CONSOLE
+                        )
+                    else:
+                        # On Unix-like systems
+                        subprocess.Popen(
+                            custom_cmd,
+                            cwd=str(plugin.path),
+                            env=env,
+                            shell=True
+                        )
+                    print(f"Launched plugin: {plugin.name}")
+                else:
+                    # Fall back to default if custom_cmd is None
+                    print("No valid custom exec command, using default uv run")
+                    self._launch_with_default_command(plugin, env)
             else:
-                # On Unix-like systems, use uv run --active
-                subprocess.Popen(
-                    ['uv', 'run', '--active', 'main.py'],
-                    cwd=str(plugin.path),
-                    env=env
-                )
-            print(f"Launched plugin: {plugin.name}")
+                # Use default uv run command
+                print("Using default uv run command")
+                self._launch_with_default_command(plugin, env)
+
 
             # Track plugin launch event
             try:
@@ -664,6 +693,29 @@ class PluginManager(QObject):
             self.errorOccurred.emit("Plugin Launch Error", error_msg)
             print(f"Error launching plugin '{plugin.name}': {e}")
             return False
+
+    def _launch_with_default_command(self, plugin: Plugin, env: dict):
+        """Launch plugin with default uv run command."""
+        if sys.platform == "win32":
+            # On Windows, use uv run --active with the plugin's virtual environment
+            # Pause only if error occurred (ERRORLEVEL != 0)
+            cmd_string = f'cmd /c "uv run --active main.py & if %ERRORLEVEL% neq 0 (echo Exit code: %ERRORLEVEL% & pause)"'
+            print(f"Executing command: {cmd_string}")
+            print(f"Working directory: {plugin.path}")
+            subprocess.Popen(
+                cmd_string,
+                cwd=str(plugin.path),
+                env=env,
+                creationflags=subprocess.CREATE_NEW_CONSOLE
+            )
+        else:
+            # On Unix-like systems, use uv run --active
+            subprocess.Popen(
+                ['uv', 'run', '--active', 'main.py'],
+                cwd=str(plugin.path),
+                env=env
+            )
+        print(f"Launched plugin: {plugin.name}")
 
     def _setup_plugin_environment_impl(self, plugin: Plugin, progress: Signal = None) -> bool:
         """Setup uv environment for a plugin in centralized venv directory (implementation)."""
