@@ -300,6 +300,10 @@ Dialog {
         urlTextField.forceActiveFocus()
     }
 
+    onRejected: {
+        pluginManager.cancel_import()
+    }
+
     Connections {
         target: pluginManager
         function onImportSucceeded() {

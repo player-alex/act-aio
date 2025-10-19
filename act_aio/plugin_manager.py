@@ -87,6 +87,10 @@ class PluginImportWorker(QThread):
         self.url = url
         self.plugins_dir = plugins_dir
         self.temp_zip_path = None
+        self._is_cancelled = False
+
+    def cancel(self):
+        self._is_cancelled = True
 
     def run(self):
         """Run the plugin import in a separate thread."""
@@ -115,6 +119,12 @@ class PluginImportWorker(QThread):
 
                         with open(temp_zip_path, 'wb') as f:
                             for chunk in response.iter_bytes(chunk_size=chunk_size):
+                                if self._is_cancelled:
+                                    error_message = "Download cancelled."
+                                    logging.info(error_message)
+                                    self.finished.emit(False, error_message, None)
+                                    return
+
                                 if chunk:
                                     f.write(chunk)
                                     downloaded_size += len(chunk)
@@ -845,6 +855,9 @@ class PluginManager(QObject):
         self._import_worker.progress.connect(self.importProgress.emit)
         self._import_worker.finished.connect(self._on_import_finished)
 
+        # Connect to deleteLater
+        self._import_worker.finished.connect(self._import_worker.deleteLater)
+
         # Start the worker
         self._import_worker.start()
 
@@ -854,11 +867,11 @@ class PluginManager(QObject):
 
         if not success:
             self._show_error("Import Failed", error_message)
-            self._import_worker = None
+            # self._import_worker = None
             return
 
         if not import_data:
-            self._import_worker = None
+            # self._import_worker = None
             return
 
         # If confirmation is needed, store data and ask user.
@@ -887,7 +900,13 @@ class PluginManager(QObject):
                     shutil.rmtree(temp_cleanup_dir)
                     logging.info(f"Cleaned up temporary import directory: {temp_cleanup_dir}")
         
-        self._import_worker = None
+        # self._import_worker = None
+
+    @Slot()
+    def cancel_import(self):
+        """Cancel the ongoing plugin import process."""
+        if self._import_worker and self._import_worker.isRunning():
+            self._import_worker.cancel()
 
     @Slot(str, str)
     def exportPlugin(self, plugin_display_name: str, plugin_path: str):
