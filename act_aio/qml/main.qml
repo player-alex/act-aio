@@ -478,6 +478,22 @@ ApplicationWindow {
         y: 80  // Below the top bar
         z: 1000  // Very high z-index
 
+        // Track which submenu is currently open (for future extensibility)
+        property string activeSubmenu: ""
+
+        onVisibleChanged: {
+            if (!visible) {
+                activeSubmenu = ""
+                importSubmenu.visible = false
+            }
+        }
+
+        // Helper function to close all submenus
+        function closeAllSubmenus() {
+            importSubmenu.visible = false
+            // Add more submenus here in the future
+        }
+
         // Consume clicks inside the menu to prevent closing
         MouseArea {
             anchors.fill: parent
@@ -490,112 +506,26 @@ ApplicationWindow {
             anchors.centerIn: parent
             spacing: 8
 
-            // Import Button with Submenu
-            Rectangle {
-                width: 100
-                height: 30
-                color: importMouseArea.containsMouse || importSubmenu.visible ? window.blue : "transparent"
-                radius: 4
-
-                Text {
-                    anchors.centerIn: parent
-                    text: "Import ›"
-                    font.family: "Roboto"
-                    font.pointSize: 10
-                    color: (importMouseArea.containsMouse || importSubmenu.visible) ? window.base : window.text
-                }
+            // Import Button
+            SubMenuRootItem {
+                id: importButton
+                text: "Import"
+                textColor: window.text
+                hoverTextColor: window.base
+                hoverBackgroundColor: window.blue
+                isHovered: importMouseArea.containsMouse
+                isActive: importSubmenu.visible
 
                 MouseArea {
                     id: importMouseArea
                     anchors.fill: parent
                     hoverEnabled: true
                     onEntered: {
+                        if (menuDropdown.activeSubmenu !== "import") {
+                            menuDropdown.closeAllSubmenus()
+                            menuDropdown.activeSubmenu = "import"
+                        }
                         importSubmenu.visible = true
-                    }
-                }
-
-                // Import Submenu
-                Rectangle {
-                    id: importSubmenu
-                    width: 120
-                    height: importSubmenuColumn.height + 16
-                    color: window.surface1
-                    radius: 8
-                    border.color: window.overlay0
-                    border.width: 1
-                    visible: false
-                    x: parent.width + 5
-                    y: 0
-                    z: 2000
-
-                    MouseArea {
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        onExited: {
-                            if (!importFromDiskMouseArea.containsMouse && !importFromUrlMouseArea.containsMouse) {
-                                importSubmenu.visible = false
-                            }
-                        }
-                    }
-
-                    Column {
-                        id: importSubmenuColumn
-                        anchors.centerIn: parent
-                        spacing: 8
-
-                        // Import from Disk
-                        Rectangle {
-                            width: 110
-                            height: 30
-                            color: importFromDiskMouseArea.containsMouse ? window.blue : "transparent"
-                            radius: 4
-
-                            Text {
-                                anchors.centerIn: parent
-                                text: "from Disk"
-                                font.family: "Roboto"
-                                font.pointSize: 10
-                                color: importFromDiskMouseArea.containsMouse ? window.base : window.text
-                            }
-
-                            MouseArea {
-                                id: importFromDiskMouseArea
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                onClicked: {
-                                    importSubmenu.visible = false
-                                    menuDropdown.visible = false
-                                    pluginManager.importPlugin()
-                                }
-                            }
-                        }
-
-                        // Import from URL
-                        Rectangle {
-                            width: 110
-                            height: 30
-                            color: importFromUrlMouseArea.containsMouse ? window.blue : "transparent"
-                            radius: 4
-
-                            Text {
-                                anchors.centerIn: parent
-                                text: "from URL"
-                                font.family: "Roboto"
-                                font.pointSize: 10
-                                color: importFromUrlMouseArea.containsMouse ? window.base : window.text
-                            }
-
-                            MouseArea {
-                                id: importFromUrlMouseArea
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                onClicked: {
-                                    importSubmenu.visible = false
-                                    menuDropdown.visible = false
-                                    urlInputDialog.show()
-                                }
-                            }
-                        }
                     }
                 }
             }
@@ -620,6 +550,11 @@ ApplicationWindow {
                     id: exportMouseArea
                     anchors.fill: parent
                     hoverEnabled: true
+                    onEntered: {
+                        // Close all submenus when hovering over non-submenu items
+                        menuDropdown.closeAllSubmenus()
+                        menuDropdown.activeSubmenu = ""
+                    }
                     onClicked: {
                         if (pluginListModel.canLaunch) {
                             menuDropdown.visible = false
@@ -647,9 +582,99 @@ ApplicationWindow {
                     id: aboutMouseArea
                     anchors.fill: parent
                     hoverEnabled: true
+                    onEntered: {
+                        // Close all submenus when hovering over non-submenu items
+                        menuDropdown.closeAllSubmenus()
+                        menuDropdown.activeSubmenu = ""
+                    }
                     onClicked: {
                         menuDropdown.visible = false
                         aboutDialog.open()
+                    }
+                }
+            }
+        }
+
+        // Import Submenu (outside Column to prevent layout interference)
+        Rectangle {
+            id: importSubmenu
+            width: 120
+            height: importSubmenuColumn.height + 16
+            color: window.surface1
+            radius: 8
+            border.color: window.overlay0
+            border.width: 1
+            visible: false
+            x: importExportColumn.x + importButton.width + 5
+            y: importExportColumn.y + importButton.y
+            z: 2000
+
+            MouseArea {
+                anchors.fill: parent
+                hoverEnabled: true
+                onExited: {
+                    if (!importFromDiskMouseArea.containsMouse && !importFromUrlMouseArea.containsMouse) {
+                        importSubmenu.visible = false
+                    }
+                }
+            }
+
+            Column {
+                id: importSubmenuColumn
+                anchors.centerIn: parent
+                spacing: 8
+
+                // Import from Disk
+                Rectangle {
+                    width: 110
+                    height: 30
+                    color: importFromDiskMouseArea.containsMouse ? window.blue : "transparent"
+                    radius: 4
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "from Disk"
+                        font.family: "Roboto"
+                        font.pointSize: 10
+                        color: importFromDiskMouseArea.containsMouse ? window.base : window.text
+                    }
+
+                    MouseArea {
+                        id: importFromDiskMouseArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        onClicked: {
+                            importSubmenu.visible = false
+                            menuDropdown.visible = false
+                            pluginManager.importPlugin()
+                        }
+                    }
+                }
+
+                // Import from URL
+                Rectangle {
+                    width: 110
+                    height: 30
+                    color: importFromUrlMouseArea.containsMouse ? window.blue : "transparent"
+                    radius: 4
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "from URL"
+                        font.family: "Roboto"
+                        font.pointSize: 10
+                        color: importFromUrlMouseArea.containsMouse ? window.base : window.text
+                    }
+
+                    MouseArea {
+                        id: importFromUrlMouseArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        onClicked: {
+                            importSubmenu.visible = false
+                            menuDropdown.visible = false
+                            urlInputDialog.show()
+                        }
                     }
                 }
             }

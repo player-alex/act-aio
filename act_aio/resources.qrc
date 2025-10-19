@@ -8,6 +8,7 @@
     <qresource prefix="/qml/components">
         <file alias="CustomScrollBar.qml">qml/components/CustomScrollBar.qml</file>
         <file alias="MultiLangText.qml">qml/components/MultiLangText.qml</file>
+        <file alias="SubMenuRootItem.qml">qml/components/SubMenuRootItem.qml</file>
     </qresource>
 
     <qresource prefix="/qml/dialogs">
