@@ -355,7 +355,7 @@ Dialog {
 
                 Text {
                     anchors.centerIn: parent
-                    text: "↓"
+                    text: "⤓"
                     font.family: "Roboto"
                     font.pointSize: 14
                     font.weight: Font.Bold

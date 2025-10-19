@@ -1,3 +1,4 @@
+import asyncio
 import os
 import re
 import sys
@@ -88,11 +89,35 @@ class PluginImportWorker(QThread):
         self.plugins_dir = plugins_dir
         self.temp_zip_path = None
         self._is_cancelled = False
+        self._asyncio_task = None
 
     def cancel(self):
+        """Request cancellation of the import process."""
+        logging.info("Cancellation requested for plugin import.")
         self._is_cancelled = True
+        if self._asyncio_task:
+            # Cancel executing asyncio task directly
+            self._asyncio_task.cancel()
 
     def run(self):
+        """Sets up and runs the asyncio event loop."""
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        try:
+            # Create async task in current thread.
+            self._asyncio_task = loop.create_task(self._run_async())
+            # Execute task.
+            loop.run_until_complete(self._asyncio_task)
+        except asyncio.CancelledError:
+            # If task cancelled by externally
+            logging.info("Asyncio task was cancelled.")
+            error_message = "Download cancelled by user."
+            self.finished.emit(False, error_message, None)
+        finally:
+            loop.close()
+
+    async def _run_async(self):
         """Run the plugin import in a separate thread."""
         success = False
         error_message = ""
@@ -110,20 +135,17 @@ class PluginImportWorker(QThread):
             # Download the file with httpx using streaming
             try:
                 self.progress.emit(-1, "Connecting to server...")
-                with httpx.Client(timeout=60.0, follow_redirects=True) as client:
-                    with client.stream('GET', self.url) as response:
+                async with httpx.AsyncClient(timeout=60.0, follow_redirects=True) as client:
+                    async with client.stream('GET', self.url) as response:
                         response.raise_for_status()
                         total_size = int(response.headers.get('content-length', 0))
                         downloaded_size = 0
                         chunk_size = 8192
 
                         with open(temp_zip_path, 'wb') as f:
-                            for chunk in response.iter_bytes(chunk_size=chunk_size):
+                            async for chunk in response.aiter_bytes(chunk_size=chunk_size):
                                 if self._is_cancelled:
-                                    error_message = "Download cancelled."
-                                    logging.info(error_message)
-                                    self.finished.emit(False, error_message, None)
-                                    return
+                                    raise asyncio.CancelledError()
 
                                 if chunk:
                                     f.write(chunk)
@@ -135,24 +157,23 @@ class PluginImportWorker(QThread):
                                         self.progress.emit(-1, f"Downloading... {downloaded_size // 1024} KB")
                         logging.info(f"Downloaded {downloaded_size} bytes to {temp_zip_path}")
 
+            except httpx.ConnectError as e:
+                error_message = f"Could not connect to the server.\n\nPlease check:\n- Your internet connection\n- The URL is correct and accessible\n- SSL certificate issues\n\nError: {str(e)}"
+                logging.error(error_message)
+                self.finished.emit(False, error_message, None)
             except httpx.HTTPStatusError as e:
                 error_message = f"HTTP error {e.response.status_code}: {e.response.reason_phrase}\n\nURL: {self.url}"
-                raise
-            except httpx.ConnectError as e:
-                error_message = f"Could not connect to the server.\n\nPlease check:\n- Your internet connection\n- The URL is correct\n- The server is accessible\n\nError: {str(e)}"
-                raise
+                logging.error(error_message)
+                self.finished.emit(False, error_message, None)
             except httpx.TimeoutException as e:
-                error_message = f"The download took too long (>60 seconds).\n\nPlease check:\n- Your internet connection\n- The file size\n- Try again later"
-                raise
-            except httpx.TooManyRedirects as e:
-                error_message = f"The URL redirected too many times.\n\nPlease check the URL and try again."
-                raise
-            except httpx.SSLError as e:
-                error_message = f"SSL certificate verification failed.\n\nThis could mean:\n- The server's SSL certificate is invalid\n- The connection is not secure\n\nError: {str(e)}"
-                raise
+                error_message = f"The request took too long (>60 seconds).\n\nPlease check your internet connection and try again later."
+                logging.error(error_message)
+                self.finished.emit(False, error_message, None)
             except Exception as e:
-                error_message = f"An unexpected error occurred while downloading.\n\nError: {str(e)}"
-                raise
+                # 그 외 모든 예외 처리
+                error_message = f"An unexpected error occurred: {e}"
+                logging.error(error_message)
+                self.finished.emit(False, error_message, None)
 
             # 3. Verify it's a valid zip file
             self.progress.emit(-1, "Verifying...")
@@ -170,6 +191,9 @@ class PluginImportWorker(QThread):
                     total_files = len(file_list)
                     self.progress.emit(0, f"Extracting... 0/{total_files} files")
                     for i, file in enumerate(file_list):
+                        if self._is_cancelled:
+                            raise asyncio.CancelledError()
+
                         zip_ref.extract(file, extraction_path)
                         percentage = int((i + 1) / total_files * 100)
                         self.progress.emit(percentage, f"Extracting... {i + 1}/{total_files} files")
@@ -208,16 +232,25 @@ class PluginImportWorker(QThread):
 
             success = True
 
+            # 8. Emit the finished signal.
+            # If successful, the responsibility to clean up main_temp_dir is passed to the main thread.
+            self.finished.emit(success, error_message, import_data)
+
+        except asyncio.CancelledError:
+            if main_temp_dir and Path(main_temp_dir).exists():
+                shutil.rmtree(main_temp_dir)
+            raise
+
         except Exception as e:
+            if main_temp_dir and Path(main_temp_dir).exists():
+                shutil.rmtree(main_temp_dir)
+
             if not error_message:
                 error_message = f"Failed to import plugin from URL: {e}"
             logging.error(f"Error importing plugin from URL: {e}")
             success = False
-            # 7. On error, clean up the main temporary directory immediately.
-            if main_temp_dir and Path(main_temp_dir).exists():
-                shutil.rmtree(main_temp_dir)
-                logging.info(f"Cleaned up temporary directory after error: {main_temp_dir}")
-        
+            self.finished.emit(False, error_message, None)
+
         # 8. Emit the finished signal.
         # If successful, the responsibility to clean up main_temp_dir is passed to the main thread.
         self.finished.emit(success, error_message, import_data)
