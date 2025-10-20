@@ -333,6 +333,7 @@ ApplicationWindow {
                     manuals: model.manuals
                     tags: model.tags
                     commands: model.commands
+                    fontSizeMultiplier: pluginManager.fontSize
 
                     onClicked: {
                         pluginListModel.selectedIndex = index

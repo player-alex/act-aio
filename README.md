@@ -20,6 +20,7 @@
 - 🎨 **Modern UI** - Clean, responsive interface built with Qt Quick/QML featuring Catppuccin color scheme
 - 🔍 **Search & Filter** - Real-time plugin search by name, description, tags, or version
 - ⚙️ **Environment Management** - Support for `.env` files with variable substitution and proxy configuration
+- 🎯 **Font Size Customization** - Adjustable font size (1.0x - 2.0x) for plugin descriptions and tags in the UI
 - 🔒 **Privacy-Focused Analytics** - Optional PostHog integration with hardware-based UUID (no personal data)
 - 📦 **Distribution Tools** - Built-in script for creating distributable packages with optional 7z compression and encryption
 
@@ -91,8 +92,9 @@ uv run python -m act_aio.main
 3. **Import/Export Plugins**: Use the top-left button to import or export plugins 📥📤
 4. **Running Plugins**: Click on a plugin in the list and press the "Run" button ▶️
 5. **Environment Variables**: Click the settings button on the right, then select "Environment Variables" to specify custom environment variables for plugin execution ⚙️
-6. **Viewing Documentation**: Click the "?" button to view plugin manuals (if available) 📖
-7. **Opening Plugin Directory**: Click the folder icon to open the plugin's directory 📁
+6. **Font Size Adjustment**: In the settings dialog, use the "Font Size" slider to adjust the font size for plugin descriptions and tags (1.0x - 2.0x) 🎯
+7. **Viewing Documentation**: Click the "?" button to view plugin manuals (if available) 📖
+8. **Opening Plugin Directory**: Click the folder icon to open the plugin's directory 📁
 
 ### Environment Variables ⚙️
 
@@ -129,7 +131,7 @@ The application will use these proxy settings for UV package installations.
 
 ## ⚙️ Configuration
 
-The main application can be configured via the `pyproject.toml` file in the root directory.
+The main application can be configured via the `pyproject.toml` file in the root directory and `settings.json` for user preferences.
 
 ### Application Title
 
@@ -145,6 +147,28 @@ title = "My Custom App Title" # This will be the window title
 ```
 
 If the `title` property is not set, the application will use a default title.
+
+### User Settings 🎯
+
+User preferences are automatically saved to `settings.json` in the root directory:
+
+- **Font Size**: Adjustable font size multiplier for plugin descriptions and tags (1.0x - 2.0x)
+- **Environment Settings**: Enabled/disabled state of environment variables from `.env`
+- **Proxy Configuration**: HTTP/HTTPS proxy settings
+
+**Example `settings.json`:**
+```json
+{
+  "proxy": "http://proxy.example.com:8080",
+  "environment_settings": {
+    "API_KEY": true,
+    "DEBUG_MODE": false
+  },
+  "font_size": 1.25
+}
+```
+
+**Note:** The `font_size` value is validated on load. Invalid values (non-numeric, out of range, NaN) will automatically default to 1.0.
 
 ## 📁 Project Structure
 

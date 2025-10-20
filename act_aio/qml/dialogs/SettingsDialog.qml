@@ -6,7 +6,7 @@ import "../components"
 Dialog {
     id: settingsDialog
     width: 500
-    height: 450
+    height: 550
     anchors.centerIn: parent
     modal: true
     focus: true
@@ -21,6 +21,7 @@ Dialog {
     property var envSettings: ({})
     property var applicationWindow
     property var pluginManager
+    property real fontSize: 1.0
 
     ListModel {
         id: envListModel
@@ -28,6 +29,7 @@ Dialog {
 
     function open() {
         envSettings = pluginManager.getEnvironmentSettings()
+        fontSize = pluginManager.fontSize
         envListModel.clear()
 
         // Load environment variables from .env file
@@ -85,6 +87,96 @@ Dialog {
                     anchors.fill: parent
                     hoverEnabled: true
                     onClicked: settingsDialog.close()
+                }
+            }
+        }
+
+        Rectangle {
+            Layout.fillWidth: true
+            height: 1
+            color: applicationWindow.surface2
+        }
+
+        // Font Size Section
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: 8
+
+            Text {
+                text: "Font Size"
+                font.family: "Roboto"
+                font.pointSize: 14
+                font.weight: Font.Bold
+                color: applicationWindow.text
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 12
+
+                Text {
+                    text: "1.00"
+                    font.family: "Roboto"
+                    font.pointSize: 10
+                    color: applicationWindow.subtext0
+                }
+
+                Slider {
+                    id: fontSizeSlider
+                    Layout.fillWidth: true
+                    from: 1.0
+                    to: 2.0
+                    value: settingsDialog.fontSize
+                    stepSize: 0.01
+
+                    onValueChanged: {
+                        settingsDialog.fontSize = value
+                    }
+
+                    background: Rectangle {
+                        x: fontSizeSlider.leftPadding
+                        y: fontSizeSlider.topPadding + fontSizeSlider.availableHeight / 2 - height / 2
+                        implicitWidth: 200
+                        implicitHeight: 4
+                        width: fontSizeSlider.availableWidth
+                        height: implicitHeight
+                        radius: 2
+                        color: applicationWindow.surface1
+
+                        Rectangle {
+                            width: fontSizeSlider.visualPosition * parent.width
+                            height: parent.height
+                            color: applicationWindow.blue
+                            radius: 2
+                        }
+                    }
+
+                    handle: Rectangle {
+                        x: fontSizeSlider.leftPadding + fontSizeSlider.visualPosition * (fontSizeSlider.availableWidth - width)
+                        y: fontSizeSlider.topPadding + fontSizeSlider.availableHeight / 2 - height / 2
+                        implicitWidth: 16
+                        implicitHeight: 16
+                        radius: 8
+                        color: fontSizeSlider.pressed ? applicationWindow.blue : applicationWindow.text
+                        border.color: applicationWindow.blue
+                        border.width: 2
+                    }
+                }
+
+                Text {
+                    text: "2.00"
+                    font.family: "Roboto"
+                    font.pointSize: 10
+                    color: applicationWindow.subtext0
+                }
+
+                Text {
+                    text: settingsDialog.fontSize.toFixed(2)
+                    font.family: "Roboto"
+                    font.pointSize: 10
+                    font.weight: Font.Bold
+                    color: applicationWindow.text
+                    Layout.minimumWidth: 35
                 }
             }
         }
@@ -251,8 +343,7 @@ Dialog {
         RowLayout {
             Layout.fillWidth: true
             spacing: 10
-            Layout.topMargin: 5
-            Layout.bottomMargin: 5
+            Layout.topMargin: 10
 
             Item {
                 Layout.fillWidth: true
@@ -304,7 +395,9 @@ Dialog {
                     hoverEnabled: true
                     onClicked: {
                         console.log("Saving environment settings:", JSON.stringify(settingsDialog.envSettings))
+                        console.log("Saving font size:", settingsDialog.fontSize)
                         pluginManager.setEnvironmentSettings(settingsDialog.envSettings)
+                        pluginManager.fontSize = settingsDialog.fontSize
                         settingsDialog.close()
                     }
                 }

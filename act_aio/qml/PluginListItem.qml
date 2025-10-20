@@ -14,6 +14,7 @@ Rectangle {
     property var manuals: []
     property var tags: []
     property var commands: []
+    property real fontSizeMultiplier: 1.0
 
     signal clicked()
     signal manualButtonClicked()
@@ -43,7 +44,8 @@ Rectangle {
     property color red: "#f38ba8"
     property color blue: "#89b4fa"
 
-    height: 110
+    implicitHeight: contentLayout.implicitHeight + 32
+    height: implicitHeight
     radius: 8
     color: isSelected ? surface2 : (mouseArea.containsMouse ? surface1 : "transparent")
     border.color: isSelected ? blue : (mouseArea.containsMouse ? overlay0 : "transparent")
@@ -65,6 +67,7 @@ Rectangle {
     }
 
     RowLayout {
+        id: contentLayout
         anchors.fill: parent
         anchors.margins: 16
         anchors.rightMargin: 12
@@ -73,6 +76,7 @@ Rectangle {
         // Plugin info
         ColumnLayout {
             Layout.fillWidth: true
+            Layout.fillHeight: true
             spacing: 8
 
             MultiLangText {
@@ -84,27 +88,32 @@ Rectangle {
                 elide: Text.ElideRight
                 wrapMode: Text.NoWrap
                 maxLines: 1
+                Layout.preferredHeight: implicitHeight
             }
 
             MultiLangText {
                 rawText: root.pluginDescription || "No description available"
-                font.pointSize: 11
+                font.pointSize: 11 * root.fontSizeMultiplier
                 color: root.subtext0
                 Layout.fillWidth: true
                 Layout.topMargin: 2
                 wrapMode: Text.WordWrap
                 maximumLineCount: 2
                 elide: Text.ElideRight
+                Layout.preferredHeight: implicitHeight
             }
 
             MultiLangText {
                 rawText: root.tags && root.tags.length > 0 ? root.tags.join(", ") : ""
-                font.pointSize: 9
+                font.pointSize: 9 * root.fontSizeMultiplier
                 color: root.blue
                 Layout.fillWidth: true
                 Layout.topMargin: 4
                 Layout.bottomMargin: 4
                 visible: root.tags && root.tags.length > 0
+                wrapMode: Text.NoWrap
+                elide: Text.ElideRight
+                Layout.preferredHeight: visible ? implicitHeight : 0
             }
         }
 

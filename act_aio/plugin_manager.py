@@ -270,6 +270,7 @@ class PluginManager(QObject):
     importStarted = Signal()  # import from URL started
     importProgress = Signal(int, str)  # percentage (0-100), status message
     importFinished = Signal(bool)  # success
+    fontSizeChanged = Signal()  # font size changed
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -285,6 +286,7 @@ class PluginManager(QObject):
         self._env_file = Path(".env")
         self._environment_settings = {}  # Dictionary to track enabled/disabled environment variables
         self._pending_import_data = None  # Store import data while waiting for confirmation
+        self._font_size = 1.0  # Font size multiplier for ListView items
         self._load_settings()
         self.scan_plugins()
 
@@ -347,6 +349,20 @@ class PluginManager(QObject):
         logging.info(f"Proxy URL set to: {self._proxy_url}")
         self._save_settings()
 
+    @Property(float, notify=fontSizeChanged)
+    def fontSize(self) -> float:
+        """Get the font size multiplier."""
+        return self._font_size
+
+    @fontSize.setter
+    def fontSize(self, size: float):
+        """Set the font size multiplier."""
+        if self._font_size != size:
+            self._font_size = max(1.0, min(2.0, size))  # Clamp between 1.0 and 2.0
+            logging.info(f"Font size set to: {self._font_size}")
+            self._save_settings()
+            self.fontSizeChanged.emit()
+
     def _load_settings(self):
         """Load settings from settings.json file."""
         try:
@@ -355,24 +371,42 @@ class PluginManager(QObject):
                     settings = json.load(f)
                 self._proxy_url = settings.get('proxy', '')
                 self._environment_settings = settings.get('environment_settings', {})
+
+                # Load and validate font_size
+                font_size = settings.get('font_size', 1.0)
+                try:
+                    font_size = float(font_size)
+                    # Clamp to valid range [1.0, 2.0]
+                    if font_size < 1.0 or font_size > 2.0 or not (0 < font_size < float('inf')):
+                        logging.warning(f"Invalid font_size value: {font_size}, using default 1.0")
+                        font_size = 1.0
+                except (TypeError, ValueError) as e:
+                    logging.warning(f"Invalid font_size type in settings.json: {font_size}, using default 1.0")
+                    font_size = 1.0
+
+                self._font_size = font_size
+
                 if self._proxy_url:
                     logging.info(f"Loaded proxy setting: {self._proxy_url}")
                 else:
                     logging.info("No proxy setting found in settings.json")
                 logging.info(f"Loaded environment settings: {self._environment_settings}")
+                logging.info(f"Loaded font size: {self._font_size}")
             else:
                 logging.info("No settings.json file found, using default settings")
         except Exception as e:
             logging.error(f"Failed to load settings: {e}")
             self._proxy_url = ""
             self._environment_settings = {}
+            self._font_size = 1.0
 
     def _save_settings(self):
         """Save settings to settings.json file."""
         try:
             settings = {
                 'proxy': self._proxy_url,
-                'environment_settings': self._environment_settings
+                'environment_settings': self._environment_settings,
+                'font_size': self._font_size
             }
             with open(self._settings_file, 'w', encoding='utf-8') as f:
                 json.dump(settings, f, indent=2)
