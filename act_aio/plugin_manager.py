@@ -9,6 +9,7 @@ import shutil
 import tempfile
 import json
 import yaml
+import stat
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 try:
@@ -27,6 +28,38 @@ from PySide6.QtWidgets import QFileDialog, QMessageBox
 ENV_FILTER_STARTSWITH = ['QT_', 'PYSIDE_']  # Filter keys starting with these prefixes
 ENV_FILTER_ENDSWITH = []  # Filter keys ending with these suffixes (for future use)
 ENV_FILTER_CONTAINS = []  # Filter keys containing these strings (for future use)
+
+
+def remove_readonly(func, path, excinfo):
+    """
+    Error handler for shutil.rmtree to remove read-only attributes.
+    This is called when rmtree encounters permission errors.
+    """
+    try:
+        # Remove read-only attribute and retry
+        os.chmod(path, stat.S_IWRITE | stat.S_IREAD)
+        func(path)
+        logging.debug(f"Removed read-only attribute and deleted: {path}")
+    except Exception as e:
+        logging.error(f"Failed to remove read-only file {path}: {e}")
+        raise
+
+
+def safe_rmtree(path):
+    """
+    Safely remove a directory tree, handling read-only files on Windows.
+
+    Args:
+        path: Path object or string path to the directory to remove
+    """
+    path = Path(path)
+    if path.exists():
+        try:
+            shutil.rmtree(path, onerror=remove_readonly)
+            logging.info(f"Successfully removed directory: {path}")
+        except Exception as e:
+            logging.error(f"Failed to remove directory {path}: {e}")
+            raise
 
 
 class Plugin:
@@ -198,6 +231,24 @@ class PluginImportWorker(QThread):
                             raise asyncio.CancelledError()
 
                         zip_ref.extract(file, extraction_path)
+
+                        # Restore Windows file attributes on Windows
+                        if sys.platform == "win32":
+                            try:
+                                zip_info = zip_ref.getinfo(file)
+                                # Windows attributes are stored in LOWER 16 bits (MS-DOS format)
+                                win_attrs = zip_info.external_attr & 0xFFFF
+
+                                if win_attrs != 0:
+                                    extracted_file = extraction_path / file
+                                    if extracted_file.exists() and extracted_file.is_file():
+                                        # Set Windows attributes
+                                        import ctypes
+                                        ctypes.windll.kernel32.SetFileAttributesW(str(extracted_file), win_attrs)
+                                        logging.debug(f"Restored Windows attributes for {file}: 0x{win_attrs:x}")
+                            except Exception as e:
+                                logging.warning(f"Failed to restore attributes for {file}: {e}")
+
                         percentage = int((i + 1) / total_files * 100)
                         self.progress.emit(percentage, f"Extracting... {i + 1}/{total_files} files")
             except Exception as e:
@@ -242,12 +293,12 @@ class PluginImportWorker(QThread):
 
         except asyncio.CancelledError:
             if main_temp_dir and Path(main_temp_dir).exists():
-                shutil.rmtree(main_temp_dir)
+                safe_rmtree(main_temp_dir)
             raise
 
         except Exception as e:
             if main_temp_dir and Path(main_temp_dir).exists():
-                shutil.rmtree(main_temp_dir)
+                safe_rmtree(main_temp_dir)
 
             if not error_message:
                 error_message = f"Failed to import plugin from URL: {e}"
@@ -892,6 +943,25 @@ class PluginManager(QObject):
                 try:
                     with zipfile.ZipFile(file_path, 'r') as zip_ref:
                         zip_ref.extractall(temp_path)
+
+                        # Restore Windows file attributes on Windows
+                        if sys.platform == "win32":
+                            for file in zip_ref.namelist():
+                                try:
+                                    zip_info = zip_ref.getinfo(file)
+                                    # Windows attributes are stored in LOWER 16 bits (MS-DOS format)
+                                    win_attrs = zip_info.external_attr & 0xFFFF
+
+                                    if win_attrs != 0:
+                                        extracted_file = temp_path / file
+                                        if extracted_file.exists() and extracted_file.is_file():
+                                            # Set Windows attributes
+                                            import ctypes
+                                            ctypes.windll.kernel32.SetFileAttributesW(str(extracted_file), win_attrs)
+                                            logging.debug(f"Restored Windows attributes for {file}: 0x{win_attrs:x}")
+                                except Exception as e:
+                                    logging.warning(f"Failed to restore attributes for {file}: {e}")
+
                 except Exception as e:
                     self._show_error("Extraction failed", f"Failed to extract zip file: {e}")
                     return
@@ -921,7 +991,7 @@ class PluginManager(QObject):
 
                     # Remove temp import dir if it exists
                     if temp_import_dir.exists():
-                        shutil.rmtree(temp_import_dir)
+                        safe_rmtree(temp_import_dir)
 
                     # Copy to temp location
                     shutil.copytree(source_dir, temp_import_dir)
@@ -1013,7 +1083,7 @@ class PluginManager(QObject):
                 # Clean up the main temporary directory.
                 temp_cleanup_dir = import_data.get('temp_cleanup_dir')
                 if temp_cleanup_dir and Path(temp_cleanup_dir).exists():
-                    shutil.rmtree(temp_cleanup_dir)
+                    safe_rmtree(temp_cleanup_dir)
                     logging.info(f"Cleaned up temporary import directory: {temp_cleanup_dir}")
         
         # self._import_worker = None
@@ -1063,10 +1133,31 @@ class PluginManager(QObject):
                             # Skip certain files/directories
                             if any(skip in file.parts for skip in ['.venv', '__pycache__', '.git', '.lock']):
                                 continue
-    
+
                             # Calculate relative path from plugin directory
                             rel_path = file.relative_to(plugin_dir.parent)
-                            zip_ref.write(file, rel_path)
+
+                            # Create ZipInfo with proper attributes
+                            zip_info = zipfile.ZipInfo.from_file(file, str(rel_path))
+
+                            # Preserve Windows file attributes on Windows
+                            if sys.platform == "win32":
+                                try:
+                                    # Get Windows file attributes
+                                    win_attrs = os.stat(file).st_file_attributes
+
+                                    # For Windows files, store attributes in LOWER 16 bits (MS-DOS format)
+                                    # and set the host OS to MS-DOS (0) to indicate Windows attributes
+                                    # Upper 16 bits are Unix permissions (kept for compatibility)
+                                    zip_info.external_attr = (zip_info.external_attr & 0xFFFF0000) | win_attrs
+
+                                    logging.debug(f"Preserved Windows attributes for {file.name}: 0x{win_attrs:x}")
+                                except Exception as e:
+                                    logging.warning(f"Failed to preserve attributes for {file}: {e}")
+
+                            # Write file to zip with the prepared ZipInfo
+                            with open(file, 'rb') as f:
+                                zip_ref.writestr(zip_info, f.read(), compress_type=zipfile.ZIP_DEFLATED)
     
                 logging.info(f"Plugin '{plugin_display_name}' exported to {file_path}")
                 self._show_info("Export successful", f"Plugin '{plugin_display_name}' has been exported to {file_path}")
@@ -1096,7 +1187,7 @@ class PluginManager(QObject):
             # Clean up temporary import directory if it exists
             temp_import_dir = self._plugins_dir / f".temp_import_{plugin_name}"
             if temp_import_dir.exists() and source_dir == temp_import_dir:
-                shutil.rmtree(temp_import_dir)
+                safe_rmtree(temp_import_dir)
                 logging.info(f"Cleaned up temporary import directory: {temp_import_dir}")
 
             # Refresh plugin list
@@ -1114,7 +1205,7 @@ class PluginManager(QObject):
             try:
                 temp_import_dir = self._plugins_dir / f".temp_import_{plugin_name}"
                 if temp_import_dir.exists():
-                    shutil.rmtree(temp_import_dir)
+                    safe_rmtree(temp_import_dir)
                     logging.info(f"Cleaned up temporary import directory after error: {temp_import_dir}")
             except Exception as cleanup_error:
                 logging.error(f"Failed to clean up temp directory: {cleanup_error}")
@@ -1137,8 +1228,8 @@ class PluginManager(QObject):
                     logging.info(f"User accepted overwrite for plugin '{pending_data['plugin_name']}'.")
                     # Remove existing plugin
                     if Path(pending_data['target_dir']).exists():
-                        shutil.rmtree(pending_data['target_dir'])
-                    
+                        safe_rmtree(pending_data['target_dir'])
+
                     # Move the new version from temp to plugins directory
                     shutil.move(str(pending_data['source_dir']), str(pending_data['target_dir']))
                     
@@ -1155,7 +1246,7 @@ class PluginManager(QObject):
             finally:
                 # Always clean up the main temporary directory
                 if temp_cleanup_dir and Path(temp_cleanup_dir).exists():
-                    shutil.rmtree(temp_cleanup_dir)
+                    safe_rmtree(temp_cleanup_dir)
                     logging.info(f"Cleaned up temporary import directory: {temp_cleanup_dir}")
 
     def _get_environment_with_proxy(self) -> Dict[str, str]:
