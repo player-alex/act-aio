@@ -337,8 +337,10 @@ class PluginManager(QObject):
         self._env_file = Path(".env")
         self._environment_settings = {}  # Dictionary to track enabled/disabled environment variables
         self._pending_import_data = None  # Store import data while waiting for confirmation
+        self._temp_import_dir = None  # Persistent temp directory for import operations
         self._font_size = 1.0  # Font size multiplier for ListView items
         self._load_settings()
+        self._cleanup_old_temp_dirs()  # Clean up any leftover temp directories from previous crashes
         self.scan_plugins()
 
     @Slot(result="QVariant")
@@ -464,6 +466,25 @@ class PluginManager(QObject):
             logging.info("Settings saved successfully")
         except Exception as e:
             logging.error(f"Failed to save settings: {e}")
+
+    def _cleanup_old_temp_dirs(self):
+        """Clean up any leftover .temp_import_ directories from previous crashes."""
+        try:
+            if not self._plugins_dir.exists():
+                return
+
+            # Find and remove all .temp_import_* directories
+            temp_dirs = list(self._plugins_dir.glob(".temp_import_*"))
+            if temp_dirs:
+                logging.info(f"Found {len(temp_dirs)} leftover temporary import directories")
+                for temp_dir in temp_dirs:
+                    try:
+                        safe_rmtree(temp_dir)
+                        logging.info(f"Cleaned up leftover temp directory: {temp_dir}")
+                    except Exception as e:
+                        logging.error(f"Failed to clean up temp directory {temp_dir}: {e}")
+        except Exception as e:
+            logging.error(f"Error during temp directory cleanup: {e}")
 
     @Slot(result='QVariant')
     def getEnvironmentVariables(self):
@@ -935,86 +956,99 @@ class PluginManager(QObject):
                 self._show_error("Invalid file", "Please select a valid zip file.")
                 return
 
-            # Create temporary directory for extraction
-            with tempfile.TemporaryDirectory() as temp_dir:
-                temp_path = Path(temp_dir)
+            # Clean up any previous temp import directory
+            if self._temp_import_dir and Path(self._temp_import_dir).exists():
+                safe_rmtree(self._temp_import_dir)
+                self._temp_import_dir = None
 
-                # Extract zip file
-                try:
-                    with zipfile.ZipFile(file_path, 'r') as zip_ref:
-                        zip_ref.extractall(temp_path)
+            # Create persistent temporary directory for extraction
+            self._temp_import_dir = tempfile.mkdtemp(prefix="plugin_import_")
+            temp_path = Path(self._temp_import_dir)
 
-                        # Restore Windows file attributes on Windows
-                        if sys.platform == "win32":
-                            for file in zip_ref.namelist():
-                                try:
-                                    zip_info = zip_ref.getinfo(file)
-                                    # Windows attributes are stored in LOWER 16 bits (MS-DOS format)
-                                    win_attrs = zip_info.external_attr & 0xFFFF
+            # Extract zip file
+            try:
+                with zipfile.ZipFile(file_path, 'r') as zip_ref:
+                    zip_ref.extractall(temp_path)
 
-                                    if win_attrs != 0:
-                                        extracted_file = temp_path / file
-                                        if extracted_file.exists() and extracted_file.is_file():
-                                            # Set Windows attributes
-                                            import ctypes
-                                            ctypes.windll.kernel32.SetFileAttributesW(str(extracted_file), win_attrs)
-                                            logging.debug(f"Restored Windows attributes for {file}: 0x{win_attrs:x}")
-                                except Exception as e:
-                                    logging.warning(f"Failed to restore attributes for {file}: {e}")
+                    # Restore Windows file attributes on Windows
+                    if sys.platform == "win32":
+                        for file in zip_ref.namelist():
+                            try:
+                                zip_info = zip_ref.getinfo(file)
+                                # Windows attributes are stored in LOWER 16 bits (MS-DOS format)
+                                win_attrs = zip_info.external_attr & 0xFFFF
 
-                except Exception as e:
-                    self._show_error("Extraction failed", f"Failed to extract zip file: {e}")
-                    return
+                                if win_attrs != 0:
+                                    extracted_file = temp_path / file
+                                    if extracted_file.exists() and extracted_file.is_file():
+                                        # Set Windows attributes
+                                        import ctypes
+                                        ctypes.windll.kernel32.SetFileAttributesW(str(extracted_file), win_attrs)
+                                        logging.debug(f"Restored Windows attributes for {file}: 0x{win_attrs:x}")
+                            except Exception as e:
+                                logging.warning(f"Failed to restore attributes for {file}: {e}")
 
-                # Find the plugin directory (should contain pyproject.toml or main.py)
-                plugin_dirs = []
-                for item in temp_path.iterdir():
-                    if item.is_dir():
-                        if (item / "pyproject.toml").exists() or (item / "main.py").exists():
-                            plugin_dirs.append(item)
+            except Exception as e:
+                self._show_error("Extraction failed", f"Failed to extract zip file: {e}")
+                # Clean up temp directory on error
+                if self._temp_import_dir and Path(self._temp_import_dir).exists():
+                    safe_rmtree(self._temp_import_dir)
+                    self._temp_import_dir = None
+                return
 
-                if len(plugin_dirs) == 0:
-                    self._show_error("Invalid plugin", "No valid plugin found in zip file. Plugin should contain pyproject.toml or main.py.")
-                    return
-                elif len(plugin_dirs) > 1:
-                    self._show_error("Multiple plugins", "Zip file contains multiple plugins. Please import one plugin at a time.")
-                    return
+            # Find the plugin directory (should contain pyproject.toml or main.py)
+            plugin_dirs = []
+            for item in temp_path.iterdir():
+                if item.is_dir():
+                    if (item / "pyproject.toml").exists() or (item / "main.py").exists():
+                        plugin_dirs.append(item)
 
-                source_dir = plugin_dirs[0]
-                plugin_name = source_dir.name
+            if len(plugin_dirs) == 0:
+                self._show_error("Invalid plugin", "No valid plugin found in zip file. Plugin should contain pyproject.toml or main.py.")
+                # Clean up temp directory
+                if self._temp_import_dir and Path(self._temp_import_dir).exists():
+                    safe_rmtree(self._temp_import_dir)
+                    self._temp_import_dir = None
+                return
+            elif len(plugin_dirs) > 1:
+                self._show_error("Multiple plugins", "Zip file contains multiple plugins. Please import one plugin at a time.")
+                # Clean up temp directory
+                if self._temp_import_dir and Path(self._temp_import_dir).exists():
+                    safe_rmtree(self._temp_import_dir)
+                    self._temp_import_dir = None
+                return
 
-                # Check if plugin already exists
-                target_dir = self._plugins_dir / plugin_name
-                if target_dir.exists():
-                    # Copy to temporary location in plugins directory before asking for confirmation
-                    temp_import_dir = self._plugins_dir / f".temp_import_{plugin_name}"
+            source_dir = plugin_dirs[0]
+            plugin_name = source_dir.name
 
-                    # Remove temp import dir if it exists
-                    if temp_import_dir.exists():
-                        safe_rmtree(temp_import_dir)
+            # Check if plugin already exists
+            target_dir = self._plugins_dir / plugin_name
+            if target_dir.exists():
+                # Store import data and request confirmation
+                # Files stay in system temp directory until user confirms
+                self._pending_import_data = {
+                    'source_dir': source_dir,
+                    'target_dir': target_dir,
+                    'plugin_name': plugin_name,
+                    'temp_cleanup_dir': self._temp_import_dir
+                }
+                self.confirmationRequested.emit(
+                    "Plugin exists",
+                    f"Plugin '{plugin_name}' already exists. Do you want to overwrite it?",
+                    "import_overwrite"
+                )
+                return
 
-                    # Copy to temp location
-                    shutil.copytree(source_dir, temp_import_dir)
-
-                    # Store import data and request confirmation
-                    self._pending_import_data = {
-                        'source_dir': temp_import_dir,
-                        'target_dir': target_dir,
-                        'plugin_name': plugin_name
-                    }
-                    self.confirmationRequested.emit(
-                        "Plugin exists",
-                        f"Plugin '{plugin_name}' already exists. Do you want to overwrite it?",
-                        "import_overwrite"
-                    )
-                    return
-
-                # Copy plugin to plugins directory
-                self._complete_import(source_dir, target_dir, plugin_name)
+            # Copy plugin to plugins directory
+            self._complete_import(source_dir, target_dir, plugin_name)
 
         except Exception as e:
             logging.error(f"Error importing plugin: {e}")
             self._show_error("Import failed", f"Failed to import plugin: {e}")
+            # Clean up temp directory on error
+            if self._temp_import_dir and Path(self._temp_import_dir).exists():
+                safe_rmtree(self._temp_import_dir)
+                self._temp_import_dir = None
 
     @Slot(str)
     def importPluginFromUrl(self, url: str):
@@ -1184,12 +1218,6 @@ class PluginManager(QObject):
             shutil.copytree(source_dir, target_dir)
             logging.info(f"Plugin '{plugin_name}' imported successfully")
 
-            # Clean up temporary import directory if it exists
-            temp_import_dir = self._plugins_dir / f".temp_import_{plugin_name}"
-            if temp_import_dir.exists() and source_dir == temp_import_dir:
-                safe_rmtree(temp_import_dir)
-                logging.info(f"Cleaned up temporary import directory: {temp_import_dir}")
-
             # Refresh plugin list
             self.scan_plugins()
 
@@ -1200,15 +1228,15 @@ class PluginManager(QObject):
         except Exception as e:
             logging.error(f"Error completing import: {e}")
             self._show_error("Import failed", f"Failed to import plugin: {e}")
-
-            # Still try to clean up temp directory on error
-            try:
-                temp_import_dir = self._plugins_dir / f".temp_import_{plugin_name}"
-                if temp_import_dir.exists():
-                    safe_rmtree(temp_import_dir)
-                    logging.info(f"Cleaned up temporary import directory after error: {temp_import_dir}")
-            except Exception as cleanup_error:
-                logging.error(f"Failed to clean up temp directory: {cleanup_error}")
+        finally:
+            # Always clean up system temp directory after import (success or failure)
+            if self._temp_import_dir and Path(self._temp_import_dir).exists():
+                try:
+                    safe_rmtree(self._temp_import_dir)
+                    logging.info(f"Cleaned up temporary import directory: {self._temp_import_dir}")
+                    self._temp_import_dir = None
+                except Exception as cleanup_error:
+                    logging.error(f"Failed to clean up temp directory: {cleanup_error}")
 
     @Slot(str, bool)
     def handleConfirmationResponse(self, callback_id: str, accepted: bool):
@@ -1222,7 +1250,7 @@ class PluginManager(QObject):
                 return
 
             temp_cleanup_dir = pending_data.get('temp_cleanup_dir')
-            
+
             try:
                 if accepted:
                     logging.info(f"User accepted overwrite for plugin '{pending_data['plugin_name']}'.")
@@ -1230,9 +1258,9 @@ class PluginManager(QObject):
                     if Path(pending_data['target_dir']).exists():
                         safe_rmtree(pending_data['target_dir'])
 
-                    # Move the new version from temp to plugins directory
-                    shutil.move(str(pending_data['source_dir']), str(pending_data['target_dir']))
-                    
+                    # Copy the new version from temp to plugins directory
+                    shutil.copytree(str(pending_data['source_dir']), str(pending_data['target_dir']))
+
                     logging.info(f"Plugin '{pending_data['plugin_name']}' overwritten and imported successfully.")
                     self.scan_plugins()
                     self._show_info("Import successful", f"Plugin '{pending_data['plugin_name']}' has been overwritten successfully.")
@@ -1244,10 +1272,17 @@ class PluginManager(QObject):
                 logging.error(f"Error overwriting plugin: {e}")
                 self._show_error("Import failed", f"Failed to overwrite plugin: {e}")
             finally:
-                # Always clean up the main temporary directory
+                # Always clean up the system temporary directory
                 if temp_cleanup_dir and Path(temp_cleanup_dir).exists():
-                    safe_rmtree(temp_cleanup_dir)
-                    logging.info(f"Cleaned up temporary import directory: {temp_cleanup_dir}")
+                    try:
+                        safe_rmtree(temp_cleanup_dir)
+                        logging.info(f"Cleaned up temporary import directory: {temp_cleanup_dir}")
+                    except Exception as cleanup_error:
+                        logging.error(f"Failed to clean up temp directory: {cleanup_error}")
+
+                # Also clean up the instance variable if it matches
+                if self._temp_import_dir == temp_cleanup_dir:
+                    self._temp_import_dir = None
 
     def _get_environment_with_proxy(self) -> Dict[str, str]:
         """Get environment variables with proxy settings and enabled .env variables."""
