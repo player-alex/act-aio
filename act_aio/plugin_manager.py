@@ -22,44 +22,14 @@ import httpx
 from PySide6.QtCore import QObject, Signal, Slot, Property, QThread
 from PySide6.QtWidgets import QFileDialog, QMessageBox
 
+from .plugin_utils import remove_readonly, safe_rmtree
+
 
 # Environment variable filter constants
 # These prefixes/patterns will be filtered out from system environment when launching plugins
 ENV_FILTER_STARTSWITH = ['QT_', 'PYSIDE_']  # Filter keys starting with these prefixes
 ENV_FILTER_ENDSWITH = []  # Filter keys ending with these suffixes (for future use)
 ENV_FILTER_CONTAINS = []  # Filter keys containing these strings (for future use)
-
-
-def remove_readonly(func, path, excinfo):
-    """
-    Error handler for shutil.rmtree to remove read-only attributes.
-    This is called when rmtree encounters permission errors.
-    """
-    try:
-        # Remove read-only attribute and retry
-        os.chmod(path, stat.S_IWRITE | stat.S_IREAD)
-        func(path)
-        logging.debug(f"Removed read-only attribute and deleted: {path}")
-    except Exception as e:
-        logging.error(f"Failed to remove read-only file {path}: {e}")
-        raise
-
-
-def safe_rmtree(path):
-    """
-    Safely remove a directory tree, handling read-only files on Windows.
-
-    Args:
-        path: Path object or string path to the directory to remove
-    """
-    path = Path(path)
-    if path.exists():
-        try:
-            shutil.rmtree(path, onerror=remove_readonly)
-            logging.info(f"Successfully removed directory: {path}")
-        except Exception as e:
-            logging.error(f"Failed to remove directory {path}: {e}")
-            raise
 
 
 class Plugin:
