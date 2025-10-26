@@ -26,6 +26,9 @@ dev-ctx.md
 .DS_Store
 Thumbs.db
 
+# Hidden markdown files (personal notes, TODO, etc.)
+.*.md
+
 # Logs and temporary files
 *.log
 *.tmp

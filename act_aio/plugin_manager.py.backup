@@ -29,15 +29,8 @@ from .plugin_executor import PluginExecutor
 
 
 class PluginManager(QObject):
-    """Manages plugin discovery and execution.
+    """Manages plugin discovery and execution."""
 
-    This is the main orchestrator class that coordinates plugin operations
-    through specialized manager components (PluginIOManager and PluginExecutor).
-    """
-
-    # ============================================================================
-    # Qt Signals
-    # ============================================================================
     pluginsChanged = Signal()
     errorOccurred = Signal(str, str)  # title, message
     setupStarted = Signal(str)  # plugin name
@@ -50,9 +43,6 @@ class PluginManager(QObject):
     importFinished = Signal(bool)  # success
     fontSizeChanged = Signal()  # font size changed
 
-    # ============================================================================
-    # Initialization
-    # ============================================================================
     def __init__(self, parent=None):
         super().__init__(parent)
         self._plugins: List[Plugin] = []
@@ -122,9 +112,6 @@ class PluginManager(QObject):
         """Set the current hardware UUID for tracking."""
         self._hardware_uuid = hardware_uuid
 
-    # ============================================================================
-    # Qt Properties and Slots (QML Interface)
-    # ============================================================================
     @Property(str)
     def proxyUrl(self) -> str:
         """Get the proxy URL."""
@@ -151,9 +138,6 @@ class PluginManager(QObject):
             self._save_settings()
             self.fontSizeChanged.emit()
 
-    # ============================================================================
-    # Settings Management
-    # ============================================================================
     def _load_settings(self):
         """Load settings from settings.json file."""
         try:
@@ -205,9 +189,6 @@ class PluginManager(QObject):
         except Exception as e:
             logging.error(f"Failed to save settings: {e}")
 
-    # ============================================================================
-    # Environment Variable Management
-    # ============================================================================
     @Slot(result='QVariant')
     def getEnvironmentVariables(self):
         """Get environment variables from .env file."""
@@ -256,9 +237,6 @@ class PluginManager(QObject):
             import traceback
             logging.error(f"Traceback: {traceback.format_exc()}")
 
-    # ============================================================================
-    # Plugin Scanning and Discovery
-    # ============================================================================
     @Property('QVariant', notify=pluginsChanged)
     def plugins(self) -> List[Dict[str, Any]]:
         """Return plugins as a list of dictionaries for QML consumption."""
@@ -314,9 +292,6 @@ class PluginManager(QObject):
             print(f"Error loading plugin from {plugin_path}: {e}")
             return None
 
-    # ============================================================================
-    # Plugin Execution (Delegated to PluginExecutor)
-    # ============================================================================
     @Slot(str, result=bool)
     def launch_plugin(self, plugin_name: str) -> bool:
         """Launch a plugin by name with uv environment management."""
@@ -329,14 +304,6 @@ class PluginManager(QObject):
                 return plugin
         return None
 
-    @Slot(str, str)
-    def executeCommand(self, plugin_name: str, command: str):
-        """Execute a command snippet for a plugin."""
-        self.executor.executeCommand(plugin_name, command)
-
-    # ============================================================================
-    # Plugin Import/Export (Delegated to PluginIOManager)
-    # ============================================================================
     @Slot()
     def importPlugin(self):
         """Import a plugin from a zip file."""
@@ -357,14 +324,6 @@ class PluginManager(QObject):
         """Export a plugin to a zip file."""
         self.io_manager.exportPlugin(plugin_display_name, plugin_path)
 
-    @Slot(str, bool)
-    def handleConfirmationResponse(self, callback_id: str, accepted: bool):
-        """Handle confirmation dialog response from QML."""
-        self.io_manager.handleConfirmationResponse(callback_id, accepted)
-
-    # ============================================================================
-    # Helper Methods
-    # ============================================================================
     def _show_error(self, title: str, message: str):
         """Show error dialog using QML signal."""
         self.errorOccurred.emit(title, message)
@@ -373,9 +332,12 @@ class PluginManager(QObject):
         """Show info message using QML signal."""
         self.infoMessageRequested.emit(title, message)
 
-    # ============================================================================
-    # Manual and Command Management
-    # ============================================================================
+    @Slot(str, bool)
+    def handleConfirmationResponse(self, callback_id: str, accepted: bool):
+        """Handle confirmation dialog response from QML."""
+        self.io_manager.handleConfirmationResponse(callback_id, accepted)
+
+
     def _get_plugin_manuals(self, plugin: Plugin) -> List[str]:
         """Get list of manual files for a plugin."""
         if not plugin:
@@ -484,4 +446,9 @@ class PluginManager(QObject):
 
         logging.info(f"Found {len(command_snippets)} command snippets for plugin '{plugin.name}'")
         return sorted(command_snippets, key=lambda x: x['name'])
+
+    @Slot(str, str)
+    def executeCommand(self, plugin_name: str, command: str):
+        """Execute a command snippet for a plugin."""
+        self.executor.executeCommand(plugin_name, command)
 
