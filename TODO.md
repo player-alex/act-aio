@@ -78,38 +78,38 @@ act_aio/
 ## Phase 4: Extract Import/Export Logic
 
 ### Step 6: Create plugin_io.py - Part 1 (Workers)
-- [ ] Create new file: `act_aio/plugin_io.py`
-- [ ] Add all necessary imports
-- [ ] Move `PluginImportWorker` class (lines ~116-309)
-- [ ] Import utilities: `from .plugin_utils import safe_rmtree`
-- [ ] Verify worker signal definitions
-- [ ] Test worker independently (if possible)
+- [x] Create new file: `act_aio/plugin_io.py`
+- [x] Add all necessary imports
+- [x] Move `PluginImportWorker` class (lines ~116-309)
+- [x] Import utilities: `from .plugin_utils import safe_rmtree`
+- [x] Verify worker signal definitions
+- [x] Test worker independently (if possible)
 
 ### Step 7: Create plugin_io.py - Part 2 (PluginIOManager)
-- [ ] Create `PluginIOManager` class
-- [ ] Move `importPlugin()` method (lines ~919-1031)
-- [ ] Move `importPluginFromUrl()` method (lines ~1033-1050)
-- [ ] Move `_on_import_finished()` method (lines ~1052-1089)
-- [ ] Move `cancel_import()` method (lines ~1091-1095)
-- [ ] Move `exportPlugin()` method (lines ~1097-1170)
-- [ ] Move `_complete_import()` method (lines ~1194-1219)
-- [ ] Move `handleConfirmationResponse()` method (lines ~1221-1265)
-- [ ] Move `_cleanup_old_temp_dirs()` method (lines ~470-487)
+- [x] Create `PluginIOManager` class
+- [x] Move `importPlugin()` method (lines ~919-1031)
+- [x] Move `importPluginFromUrl()` method (lines ~1033-1050)
+- [x] Move `_on_import_finished()` method (lines ~1052-1089)
+- [x] Move `cancel_import()` method (lines ~1091-1095)
+- [x] Move `exportPlugin()` method (lines ~1097-1170)
+- [x] Move `_complete_import()` method (lines ~1194-1219)
+- [x] Move `handleConfirmationResponse()` method (lines ~1221-1265)
+- [x] Move `_cleanup_old_temp_dirs()` method (lines ~470-487)
 
 ### Step 8: Integrate PluginIOManager
-- [ ] Add `__init__` to PluginIOManager accepting manager reference
-- [ ] Store manager reference: `self.manager = manager`
-- [ ] Update all signal emissions to use `self.manager.signalName.emit()`
-- [ ] Update all `self._show_error()` to `self.manager._show_error()`
-- [ ] Update all `self._show_info()` to `self.manager._show_info()`
-- [ ] Update access to `self._plugins_dir` → `self.manager._plugins_dir`
-- [ ] In plugin_manager.py, create instance: `self.io_manager = PluginIOManager(self)`
-- [ ] Delegate calls from plugin_manager to io_manager
-- [ ] Test import from disk functionality
-- [ ] Test import from URL functionality
-- [ ] Test export functionality
-- [ ] Test overwrite confirmation dialog
-- [ ] Commit: "Extract I/O operations to plugin_io.py"
+- [x] Add `__init__` to PluginIOManager accepting manager reference
+- [x] Store manager reference: `self.manager = manager`
+- [x] Update all signal emissions to use `self.manager.signalName.emit()`
+- [x] Update all `self._show_error()` to `self.manager._show_error()`
+- [x] Update all `self._show_info()` to `self.manager._show_info()`
+- [x] Update access to `self._plugins_dir` → `self.manager._plugins_dir`
+- [x] In plugin_manager.py, create instance: `self.io_manager = PluginIOManager(self)`
+- [x] Delegate calls from plugin_manager to io_manager
+- [x] Test import from disk functionality
+- [x] Test import from URL functionality
+- [x] Test export functionality
+- [x] Test overwrite confirmation dialog
+- [x] Commit: "Extract I/O operations to plugin_io.py"
 
 **Estimated Time**: 60 minutes
 **Risk Level**: 🟡 Medium
