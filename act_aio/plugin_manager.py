@@ -23,6 +23,7 @@ from PySide6.QtCore import QObject, Signal, Slot, Property, QThread
 from PySide6.QtWidgets import QFileDialog, QMessageBox
 
 from .plugin_utils import remove_readonly, safe_rmtree
+from .plugin_models import Plugin
 
 
 # Environment variable filter constants
@@ -30,34 +31,6 @@ from .plugin_utils import remove_readonly, safe_rmtree
 ENV_FILTER_STARTSWITH = ['QT_', 'PYSIDE_']  # Filter keys starting with these prefixes
 ENV_FILTER_ENDSWITH = []  # Filter keys ending with these suffixes (for future use)
 ENV_FILTER_CONTAINS = []  # Filter keys containing these strings (for future use)
-
-
-class Plugin:
-    """Represents a single plugin with its metadata."""
-
-    def __init__(self, path: Path, metadata: Dict[str, Any]):
-        self.path = path
-        self.name = metadata.get("name", "Unknown")
-        self.alias = metadata.get("alias", "")
-        self.description = metadata.get("description", "No description")
-        self.version = metadata.get("version", "0.0.0")
-
-        # Robustly parse tags
-        raw_tags = metadata.get("tags", [])
-        if isinstance(raw_tags, list):
-            self.tags = [str(tag) for tag in raw_tags]
-        else:
-            self.tags = []
-
-        # Parse custom execution command (supports string or dict for platform-specific)
-        self.exec_command = metadata.get("exec", None)
-
-        self.main_file = path / "main.py"
-
-    @property
-    def is_executable(self) -> bool:
-        """Check if the plugin has a main.py file."""
-        return self.main_file.exists()
 
 
 class PluginSetupWorker(QThread):
