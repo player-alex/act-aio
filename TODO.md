@@ -119,39 +119,39 @@ act_aio/
 ## Phase 5: Extract Execution Logic
 
 ### Step 9: Create plugin_executor.py - Part 1 (Worker)
-- [ ] Create new file: `act_aio/plugin_executor.py`
-- [ ] Add all necessary imports
-- [ ] Move `PluginSetupWorker` class (lines ~93-113)
-- [ ] Verify worker signal definitions
-- [ ] Test worker independently (if possible)
+- [x] Create new file: `act_aio/plugin_executor.py`
+- [x] Add all necessary imports
+- [x] Move `PluginSetupWorker` class (lines ~93-113)
+- [x] Verify worker signal definitions
+- [x] Test worker independently (if possible)
 
 ### Step 10: Create plugin_executor.py - Part 2 (PluginExecutor)
-- [ ] Create `PluginExecutor` class
-- [ ] Move `launch_plugin()` method (lines ~571-608)
-- [ ] Move `_on_setup_finished()` method (lines ~610-622)
-- [ ] Move `_launch_plugin_process()` method (lines ~624-780)
-- [ ] Move `_launch_with_default_command()` method (lines ~782-803)
-- [ ] Move `_setup_plugin_environment_impl()` method (lines ~805-880)
-- [ ] Move `_check_uv_command()` method (lines ~882-898)
-- [ ] Move `_check_python_command()` method (lines ~907-916)
-- [ ] Move `executeCommand()` method (lines ~1455-1490)
-- [ ] Move `_substitute_command_macros()` method (lines ~1515-1542)
-- [ ] Move `_get_environment_with_proxy()` method (lines ~1267-1325)
-- [ ] Move `_generate_env_echo_commands()` method (lines ~1327-1344)
+- [x] Create `PluginExecutor` class
+- [x] Move `launch_plugin()` method (lines ~571-608)
+- [x] Move `_on_setup_finished()` method (lines ~610-622)
+- [x] Move `_launch_plugin_process()` method (lines ~624-780)
+- [x] Move `_launch_with_default_command()` method (lines ~782-803)
+- [x] Move `_setup_plugin_environment_impl()` method (lines ~805-880)
+- [x] Move `_check_uv_command()` method (lines ~882-898)
+- [x] Move `_check_python_command()` method (lines ~907-916)
+- [x] Move `executeCommand()` method (lines ~1455-1490)
+- [x] Move `_substitute_command_macros()` method (lines ~1515-1542)
+- [x] Move `_get_environment_with_proxy()` method (lines ~1267-1325)
+- [x] Move `_generate_env_echo_commands()` method (lines ~1327-1344)
 
 ### Step 11: Integrate PluginExecutor
-- [ ] Add `__init__` to PluginExecutor accepting manager reference
-- [ ] Store manager reference: `self.manager = manager`
-- [ ] Update all signal emissions to use `self.manager.signalName.emit()`
-- [ ] Update all `self._show_error()` to `self.manager._show_error()`
-- [ ] Update access to shared state (_plugins_dir, _proxy_url, etc.)
-- [ ] In plugin_manager.py, create instance: `self.executor = PluginExecutor(self)`
-- [ ] Delegate calls from plugin_manager to executor
-- [ ] Test plugin launch functionality
-- [ ] Test environment setup
-- [ ] Test command execution
-- [ ] Test custom exec commands
-- [ ] Commit: "Extract execution logic to plugin_executor.py"
+- [x] Add `__init__` to PluginExecutor accepting manager reference
+- [x] Store manager reference: `self.manager = manager`
+- [x] Update all signal emissions to use `self.manager.signalName.emit()`
+- [x] Update all `self._show_error()` to `self.manager._show_error()`
+- [x] Update access to shared state (_plugins_dir, _proxy_url, etc.)
+- [x] In plugin_manager.py, create instance: `self.executor = PluginExecutor(self)`
+- [x] Delegate calls from plugin_manager to executor
+- [x] Test plugin launch functionality
+- [x] Test environment setup
+- [x] Test command execution
+- [x] Test custom exec commands
+- [x] Commit: "Extract execution logic to plugin_executor.py"
 
 **Estimated Time**: 60 minutes
 **Risk Level**: 🟡 Medium
